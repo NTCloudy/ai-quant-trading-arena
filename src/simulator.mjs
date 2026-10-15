@@ -162,7 +162,9 @@ export function runArenaSimulation(rawMarketData, options = {}) {
           const tradeRecord = {
             id: `${trader.id}-${symbol}-${pos.entryDate}-${date}`,
             traderId: trader.id,
+            traderName: trader.name,
             traderNameZh: trader.nameZh,
+            traderColor: trader.color,
             symbol,
             assetNameZh: getAssetMeta(symbol).nameZh,
             category: getAssetMeta(symbol).category,
@@ -173,6 +175,8 @@ export function runArenaSimulation(rawMarketData, options = {}) {
             shares: pos.shares,
             entryPrice: pos.entryPrice,
             exitPrice: bar.close,
+            stopLoss: pos.stopLoss,
+            takeProfit: pos.takeProfit,
             costBasis: pos.costBasis,
             netProceeds,
             feesPaid: totalFees,
@@ -190,10 +194,28 @@ export function runArenaSimulation(rawMarketData, options = {}) {
 
           closedTrades.push(tradeRecord);
           orderEvents.push({
+            id: `SELL-${trader.id}-${symbol}-${date}`,
+            traderId: trader.id,
+            traderName: trader.name,
+            traderNameZh: trader.nameZh,
+            traderBadge: trader.badge,
+            traderColor: trader.color,
             date,
+            entryDate: pos.entryDate,
+            exitDate: date,
+            barsHeld: pos.barsHeld,
             type: 'SELL',
+            status: 'CLOSED',
             symbol,
+            assetName: getAssetMeta(symbol).name,
+            assetNameZh: getAssetMeta(symbol).nameZh,
+            assetColor: getAssetMeta(symbol).color,
             price: bar.close,
+            entryPrice: pos.entryPrice,
+            exitPrice: bar.close,
+            currentPrice: bar.close,
+            stopLoss: pos.stopLoss,
+            takeProfit: pos.takeProfit,
             shares: pos.shares,
             amount: netProceeds,
             fee: exitFee,
@@ -277,15 +299,28 @@ export function runArenaSimulation(rawMarketData, options = {}) {
           });
 
           orderEvents.push({
+            id: `BUY-${trader.id}-${cand.asset.symbol}-${date}`,
+            traderId: trader.id,
+            traderName: trader.name,
+            traderNameZh: trader.nameZh,
+            traderBadge: trader.badge,
+            traderColor: trader.color,
             date,
+            entryDate: date,
             type: 'BUY',
+            status: 'OPEN',
             symbol: cand.asset.symbol,
+            assetName: cand.asset.name,
+            assetNameZh: cand.asset.nameZh,
+            assetColor: cand.asset.color,
             price: entryPrice,
+            entryPrice,
+            currentPrice: entryPrice,
             shares,
             amount: totalCost,
             fee: entryFee,
-            stopLoss: cand.decision.stopLossPrice,
-            takeProfit: cand.decision.takeProfitPrice,
+            stopLoss: cand.decision.stopLossPrice || entryPrice * 0.945,
+            takeProfit: cand.decision.takeProfitPrice || entryPrice * 1.1,
             tagZh: cand.decision.tagZh,
             tagEn: cand.decision.tagEn,
             reasonZh: cand.decision.reasonZh,
@@ -325,14 +360,77 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       const marketValue = pos.shares * pos.currentPrice;
       const unrealizedPnl = marketValue - pos.costBasis;
       const unrealizedPnlPct = (unrealizedPnl / pos.costBasis) * 100;
+      const rangeSpan = Math.max(0.0001, pos.takeProfit - pos.stopLoss);
+      const rangeProgressPct = Math.max(
+        0,
+        Math.min(100, ((pos.currentPrice - pos.stopLoss) / rangeSpan) * 100)
+      );
+      const entryRangePct = Math.max(
+        0,
+        Math.min(100, ((pos.entryPrice - pos.stopLoss) / rangeSpan) * 100)
+      );
+      const distToTpPct =
+        pos.currentPrice > 0 ? ((pos.takeProfit - pos.currentPrice) / pos.currentPrice) * 100 : 0;
+      const distToSlPct =
+        pos.currentPrice > 0 ? ((pos.currentPrice - pos.stopLoss) / pos.currentPrice) * 100 : 0;
       return {
         ...pos,
+        traderId: trader.id,
+        traderName: trader.name,
+        traderNameZh: trader.nameZh,
+        traderBadge: trader.badge,
+        traderColor: trader.color,
+        assetColor: getAssetMeta(pos.symbol).color,
         status: 'OPEN',
         marketValue,
         unrealizedPnl,
-        unrealizedPnlPct
+        unrealizedPnlPct,
+        rangeProgressPct,
+        entryRangePct,
+        distToTpPct,
+        distToSlPct
       };
     });
+
+    // Enrich BUY order events with current live mark-to-market status or closed status
+    const activeMap = new Map(activePositions.map((p) => [`${p.symbol}-${p.entryDate}`, p]));
+    const closedMap = new Map(closedTrades.map((c) => [`${c.symbol}-${c.entryDate}`, c]));
+    for (const ev of orderEvents) {
+      if (ev.type === 'BUY') {
+        const key = `${ev.symbol}-${ev.entryDate}`;
+        const activePos = activeMap.get(key);
+        const closedTr = closedMap.get(key);
+        if (activePos) {
+          ev.status = 'OPEN';
+          ev.currentPrice = activePos.currentPrice;
+          ev.barsHeld = activePos.barsHeld;
+          ev.pnl = activePos.unrealizedPnl;
+          ev.pnlPct = activePos.unrealizedPnlPct;
+          ev.rangeProgressPct = activePos.rangeProgressPct;
+          ev.entryRangePct = activePos.entryRangePct;
+          ev.distToTpPct = activePos.distToTpPct;
+          ev.distToSlPct = activePos.distToSlPct;
+        } else if (closedTr) {
+          ev.status = 'CLOSED';
+          ev.exitDate = closedTr.exitDate;
+          ev.exitPrice = closedTr.exitPrice;
+          ev.currentPrice = closedTr.exitPrice;
+          ev.barsHeld = closedTr.barsHeld;
+          ev.pnl = closedTr.netPnl;
+          ev.pnlPct = closedTr.netPnlPct;
+        }
+      } else if (ev.type === 'SELL') {
+        const rangeSpan = Math.max(0.0001, (ev.takeProfit || ev.price * 1.1) - (ev.stopLoss || ev.price * 0.95));
+        ev.rangeProgressPct = Math.max(
+          0,
+          Math.min(100, ((ev.exitPrice - ev.stopLoss) / rangeSpan) * 100)
+        );
+        ev.entryRangePct = Math.max(
+          0,
+          Math.min(100, ((ev.entryPrice - ev.stopLoss) / rangeSpan) * 100)
+        );
+      }
+    }
 
     // Compute summary metrics
     const finalPoint = equityCurve.at(-1) || {
@@ -459,6 +557,16 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     };
   }).filter(Boolean);
 
+  // Build unified cross-AI recent operations feed sorted newest date first
+  const recentOperations = traderResults
+    .flatMap((tr) => tr.orderEvents)
+    .sort((a, b) => {
+      const dateCmp = b.date.localeCompare(a.date);
+      if (dateCmp !== 0) return dateCmp;
+      // Put SELL before BUY on same date or sort by PnL %
+      return (b.pnlPct || 0) - (a.pnlPct || 0);
+    });
+
   return {
     generatedAt: new Date().toISOString(),
     marketUpdatedAt: rawMarketData.fetchedAt || new Date().toISOString(),
@@ -480,6 +588,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     },
     traderResults,
     leaderboard,
+    recentOperations,
     latestRadar
   };
 }

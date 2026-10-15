@@ -124,6 +124,28 @@
       <div class="traders-grid" id="traders-leaderboard-grid"></div>
     </section>
 
+    <!-- Section 1.5: Recent Entry / Exit Points & Specific Ticker Operations Feed -->
+    <section class="arena-section" id="recent-ops-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title" data-i18n="secRecentOpsTitle">
+            🎯 最新進出場點位 ＆ 具體操作標的戰報（點擊任一操作可直接定位至下方 K 線買賣點）
+          </h2>
+          <p class="section-desc" id="recent-ops-summary-text">
+            即時彙整 3 位 AI 操盤手最新執行的「具體買賣股票／加密貨幣、進場價、退場價／現價、停損點 (SL) 與目標停利點 (TP)」
+          </p>
+        </div>
+        <div class="segmented-pills" id="recent-ops-filter-pills">
+          <button type="button" class="seg-pill active" data-ops-filter="all">全部最新操作 (All)</button>
+          <button type="button" class="seg-pill" data-ops-filter="BUY">🟢 最新進場買點 (BUY)</button>
+          <button type="button" class="seg-pill" data-ops-filter="SELL">🔴 最新退場賣點 (SELL)</button>
+          <button type="button" class="seg-pill" data-ops-filter="OPEN">🔥 持倉中點位追蹤 (Active SL/TP)</button>
+        </div>
+      </div>
+
+      <div class="recent-ops-grid" id="recent-ops-grid"></div>
+    </section>
+
     <!-- Section 2: Portfolio Equity Curve & Drawdown Comparison -->
     <section class="arena-section">
       <div class="section-header">

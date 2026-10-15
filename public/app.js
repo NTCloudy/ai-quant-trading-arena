@@ -12,6 +12,7 @@ const state = {
   feeRate: 0.001,
   selectedTraderId: 'sigma-reversion',
   selectedSymbol: 'NVDA',
+  recentOpsFilter: 'all', // 'all' | 'BUY' | 'SELL' | 'OPEN'
   equityChartMode: 'return', // 'return' | 'dollar' | 'drawdown'
   ledgerTab: 'closed', // 'closed' | 'orders'
   arenaResult: null,
@@ -103,6 +104,17 @@ function bindControls() {
   document.getElementById('select-fee-rate')?.addEventListener('change', (e) => {
     state.feeRate = Number(e.target.value);
     recomputeAndRender(false);
+  });
+
+  // Recent Operations filter pills
+  document.getElementById('recent-ops-filter-pills')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-ops-filter]');
+    if (!btn) return;
+    state.recentOpsFilter = btn.dataset.opsFilter;
+    document
+      .querySelectorAll('#recent-ops-filter-pills .seg-pill')
+      .forEach((el) => el.classList.toggle('active', el === btn));
+    renderRecentOperationsSection();
   });
 
   // Equity chart mode pills
@@ -234,6 +246,7 @@ function recomputeAndRender(selectChampion = false) {
   renderTopTickerTape();
   renderHeaderMeta();
   renderLeaderboard();
+  renderRecentOperationsSection();
   renderEquityLegend();
   drawEquityChart();
   renderKlineAssetPills();
@@ -413,6 +426,40 @@ function renderLeaderboard() {
             ${state.lang === 'zh' ? t.strategySummaryZh : t.strategySummaryEn}
           </p>
 
+          <div class="trader-recent-ops">
+            <div class="trader-recent-ops-title">
+              <span>📌 ${state.lang === 'zh' ? '最近 3 筆進出場點位與操作標的' : 'Latest 3 Entry/Exit Executions'}</span>
+              <span style="color:var(--accent-cyan);font-size:10.5px;">${state.lang === 'zh' ? '點選看K線 ↗' : 'View K-Line ↗'}</span>
+            </div>
+            ${item.orderEvents
+              .slice(0, 3)
+              .map((ev) => {
+                const isBuy = ev.type === 'BUY';
+                const pnlVal = Number.isFinite(ev.pnlPct) ? ev.pnlPct : 0;
+                const priceFlow = isBuy
+                  ? `$${ev.entryPrice.toFixed(2)} → 現價 $${(ev.currentPrice || ev.price).toFixed(2)}`
+                  : `$${ev.entryPrice.toFixed(2)} → 退場 $${(ev.exitPrice || ev.price).toFixed(2)}`;
+                return `
+                  <div class="trader-op-row" data-jump-sym="${ev.symbol}" data-jump-trader="${t.id}">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                      <span class="action-badge action-${ev.type}" style="padding:1px 6px;font-size:10px;">
+                        ${isBuy ? '🟢 進場' : '🔴 退場'}
+                      </span>
+                      <strong>${ev.symbol}</strong>
+                      <span style="color:var(--text-secondary);font-size:10.5px;">${ev.date.slice(5)}</span>
+                    </div>
+                    <div style="text-align:right;">
+                      <span>${priceFlow}</span>
+                      <strong class="${pnlVal >= 0 ? 'pos-val' : 'neg-val'}" style="margin-left:4px;">
+                        (${fmtPct(pnlVal, 1)})
+                      </strong>
+                    </div>
+                  </div>
+                `;
+              })
+              .join('')}
+          </div>
+
           <div class="trader-holdings-row">
             <span style="font-size:11px;color:var(--text-secondary);">
               ${state.lang === 'zh' ? '目前持倉：' : 'Holdings:'}
@@ -423,6 +470,13 @@ function renderLeaderboard() {
       `;
     })
     .join('');
+
+  grid.querySelectorAll('[data-jump-sym]').forEach((row) => {
+    row.addEventListener('click', (e) => {
+      e.stopPropagation();
+      jumpToKlineAssetAndTrader(row.dataset.jumpSym, row.dataset.jumpTrader);
+    });
+  });
 
   grid.querySelectorAll('[data-select-trader]').forEach((card) => {
     card.addEventListener('click', () => {
@@ -439,6 +493,169 @@ function renderLeaderboard() {
       drawKlineChart();
       renderTraderSelectPills();
       renderSelectedTraderLedger();
+    });
+  });
+}
+
+function jumpToKlineAssetAndTrader(symbol, traderId) {
+  stopReplay();
+  if (symbol) state.selectedSymbol = symbol;
+  if (traderId) state.selectedTraderId = traderId;
+  state.klineResult = runSingleAssetSimulation(
+    state.marketData,
+    state.selectedSymbol,
+    state.selectedTraderId,
+    Math.max(40, state.periodDays)
+  );
+  renderTopTickerTape();
+  renderLeaderboard();
+  renderKlineAssetPills();
+  renderKlineHeaderAndSignals();
+  drawKlineChart();
+  renderTraderSelectPills();
+  renderSelectedTraderLedger();
+  document.getElementById('kline-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderRecentOperationsSection() {
+  const grid = document.getElementById('recent-ops-grid');
+  if (!grid || !state.arenaResult) return;
+
+  const filter = state.recentOpsFilter || 'all';
+  let ops = state.arenaResult.recentOperations || [];
+
+  if (filter === 'BUY') {
+    ops = ops.filter((o) => o.type === 'BUY');
+  } else if (filter === 'SELL') {
+    ops = ops.filter((o) => o.type === 'SELL');
+  } else if (filter === 'OPEN') {
+    ops = ops.filter((o) => o.type === 'BUY' && o.status === 'OPEN');
+  }
+
+  const displayOps = ops.slice(0, 9);
+
+  if (displayOps.length === 0) {
+    grid.innerHTML = `<div class="panel-card" style="grid-column: 1 / -1; color: var(--text-secondary);">目前此篩選條件下無操作紀錄。</div>`;
+    return;
+  }
+
+  grid.innerHTML = displayOps
+    .map((op) => {
+      const isBuy = op.type === 'BUY';
+      const isOpen = op.status === 'OPEN';
+      const pnlPct = Number.isFinite(op.pnlPct) ? op.pnlPct : 0;
+      const pnlDollar = Number.isFinite(op.pnl) ? op.pnl : 0;
+      const isPos = pnlPct >= 0;
+      const entryP = Number(op.entryPrice || op.price || 0);
+      const refP = Number(isBuy ? op.currentPrice || op.price : op.exitPrice || op.price);
+      const slP = Number(op.stopLoss || entryP * 0.96);
+      const tpP = Number(op.takeProfit || entryP * 1.15);
+
+      const entryTickLeft = Number.isFinite(op.entryRangePct) ? op.entryRangePct : 25;
+      const dotLeft = Number.isFinite(op.rangeProgressPct) ? op.rangeProgressPct : 50;
+
+      const statusBadgeHtml = isBuy
+        ? isOpen
+          ? `<span class="action-badge action-HOLD">🔵 持倉續抱中 (${op.barsHeld || 0}日)</span>`
+          : `<span class="action-badge action-WAIT">✓ 已完成平倉 (${op.exitDate?.slice(5) || ''})</span>`
+        : `<span class="action-badge action-SELL">🔴 已退場結算 (${op.barsHeld || 0}日)</span>`;
+
+      return `
+        <article
+          class="op-card ${isBuy ? 'op-buy' : 'op-sell'}"
+          data-op-sym="${op.symbol}"
+          data-op-trader="${op.traderId}"
+        >
+          <div class="op-card-head">
+            <div>
+              <div class="op-ticker-group">
+                <span class="op-ticker-pill" style="border-left: 3px solid ${op.assetColor || '#00f0ff'};">
+                  ${op.symbol}
+                </span>
+                <div>
+                  <div style="font-weight:700;font-size:13px;color:#f8fafc;">
+                    ${state.lang === 'zh' ? op.assetNameZh : op.assetName}
+                  </div>
+                  <div class="mono" style="font-size:11px;color:var(--text-secondary);">
+                    📅 ${op.date} · ${op.shares} 股 (${fmtMoney(op.amount, 0)})
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+              <span class="action-badge action-${op.type}">
+                ${isBuy ? '🟢 進場買點 BUY' : '🔴 退場賣點 SELL'}
+              </span>
+              <span class="op-trader-tag" style="color:${op.traderColor};border:1px solid ${op.traderColor}44;">
+                ${state.lang === 'zh' ? op.traderNameZh : op.traderName}
+              </span>
+            </div>
+          </div>
+
+          <div class="op-price-matrix">
+            <div class="op-price-cell">
+              <span class="op-price-lbl">${state.lang === 'zh' ? '🟢 進場點位' : 'Entry Price'}</span>
+              <span class="op-price-val">$${entryP.toFixed(2)}</span>
+              <span style="font-size:10px;color:var(--text-secondary);">${op.entryDate?.slice(5) || op.date.slice(5)}</span>
+            </div>
+            <div class="op-price-cell">
+              <span class="op-price-lbl">${isBuy ? (isOpen ? '⚡ 目前現價' : '🏁 退場結算價') : '🔴 退場點位'}</span>
+              <span class="op-price-val ${isPos ? 'pos-val' : 'neg-val'}">$${refP.toFixed(2)}</span>
+              <span class="${isPos ? 'pos-val' : 'neg-val'}" style="font-size:10.5px;font-weight:700;">
+                ${fmtPct(pnlPct)} (${pnlDollar >= 0 ? '+' : ''}${fmtMoney(pnlDollar, 0)})
+              </span>
+            </div>
+            <div class="op-price-cell">
+              <span class="op-price-lbl">${state.lang === 'zh' ? '🛡️ 停損點 (SL)' : 'Stop-Loss'}</span>
+              <span class="op-price-val neg-val">$${slP.toFixed(2)}</span>
+              <span style="font-size:10px;color:var(--text-secondary);">
+                ${(((slP - entryP) / entryP) * 100).toFixed(1)}%
+              </span>
+            </div>
+            <div class="op-price-cell">
+              <span class="op-price-lbl">${state.lang === 'zh' ? '🎯 目標價 (TP)' : 'Take-Profit'}</span>
+              <span class="op-price-val pos-val">$${tpP.toFixed(2)}</span>
+              <span style="font-size:10px;color:var(--text-secondary);">
+                +${(((tpP - entryP) / entryP) * 100).toFixed(1)}%
+              </span>
+            </div>
+          </div>
+
+          <div class="op-ruler-wrap">
+            <div class="op-ruler-labels">
+              <span>SL $${slP.toFixed(1)}</span>
+              <span>進場 $${entryP.toFixed(1)}</span>
+              <span style="color:${isPos ? 'var(--bull-green)' : 'var(--bear-red)'};font-weight:700;">
+                ${isBuy && isOpen ? `現價 $${refP.toFixed(1)}` : `退場 $${refP.toFixed(1)}`}
+              </span>
+              <span>TP $${tpP.toFixed(1)}</span>
+            </div>
+            <div class="op-ruler-track">
+              <div class="op-ruler-entry-tick" style="left:${entryTickLeft}%;" title="進場點位"></div>
+              <div
+                class="op-ruler-current-dot"
+                style="left:${dotLeft}%;background:${isPos ? 'var(--bull-green)' : 'var(--bear-red)'};color:${isPos ? 'var(--bull-green)' : 'var(--bear-red)'};"
+              ></div>
+            </div>
+          </div>
+
+          <div style="font-size:12px;color:#cbd5e1;line-height:1.4;">
+            <strong style="color:#fff;">${state.lang === 'zh' ? op.tagZh : op.tagEn}：</strong>
+            ${state.lang === 'zh' ? op.reasonZh : op.reasonEn}
+          </div>
+
+          <div class="op-card-footer">
+            ${statusBadgeHtml}
+            <span class="op-jump-link">🔍 點擊定位至 ${op.symbol} K線圖 ↗</span>
+          </div>
+        </article>
+      `;
+    })
+    .join('');
+
+  grid.querySelectorAll('[data-op-sym]').forEach((card) => {
+    card.addEventListener('click', () => {
+      jumpToKlineAssetAndTrader(card.dataset.opSym, card.dataset.opTrader);
     });
   });
 }
