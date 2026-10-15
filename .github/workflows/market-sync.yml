@@ -5,7 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    # Runs automatically every US trading day after market close (21:30 UTC / 17:30 ET)
+    # Weekly Monday Auto-Refresh: Re-scans external US stock universe & locks in new Weekly Top 5 Promising Stocks every Monday (13:00 UTC)
+    - cron: '0 13 * * 1'
+    # Daily Market Close Sync: Updates real Yahoo Finance OHLCV quotes & 3 AI Traders ledger every US trading day (21:30 UTC)
     - cron: '30 21 * * 1-5'
 
 permissions:
@@ -42,7 +44,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/market-snapshot.json data/sync-history.json
+          git add data/market-snapshot.json data/sync-history.json data/weekly-top5-discovery.json
           if ! git diff --staged --quiet; then
             git commit -m "chore(market): auto-sync real Yahoo Finance OHLCV & 3 AI traders ledger [skip ci]"
             git push origin HEAD:main

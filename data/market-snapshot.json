@@ -1,6 +1,6 @@
 {
   "source": "Yahoo Finance Real-Time & Historical OHLCV Feed",
-  "fetchedAt": "2026-10-15T04:41:43.386Z",
+  "fetchedAt": "2026-10-15T04:50:52.433Z",
   "assetsCount": 24,
   "symbols": {
     "NVDA": {
@@ -54278,7 +54278,7 @@
           "high": 4183.2998,
           "low": 4120.8999,
           "close": 4166.6001,
-          "volume": 40680
+          "volume": 40991
         }
       ]
     },
@@ -54286,7 +54286,7 @@
       "symbol": "BTC-USD",
       "currency": "USD",
       "exchangeName": "CCC",
-      "regularMarketPrice": 81453.02,
+      "regularMarketPrice": 81523.05,
       "previousClose": 67041.11,
       "barsCount": 730,
       "firstDate": "2024-10-15",
@@ -60859,8 +60859,8 @@
           "open": 81573.1016,
           "high": 81773.7656,
           "low": 80642.5938,
-          "close": 81453.0234,
-          "volume": 40498089984
+          "close": 81523.0469,
+          "volume": 40687353856
         }
       ]
     },
@@ -60868,7 +60868,7 @@
       "symbol": "ETH-USD",
       "currency": "USD",
       "exchangeName": "CCC",
-      "regularMarketPrice": 2380.51,
+      "regularMarketPrice": 2380.71,
       "previousClose": 2606.022,
       "barsCount": 730,
       "firstDate": "2024-10-15",
@@ -67441,8 +67441,8 @@
           "open": 2418.4326,
           "high": 2424.9353,
           "low": 2342.5146,
-          "close": 2380.51,
-          "volume": 17160800256
+          "close": 2380.71,
+          "volume": 17280821248
         }
       ]
     },

@@ -645,11 +645,14 @@ export function runArenaSimulation(rawMarketData, options = {}) {
 
   const recentWeekOperations = recentOperations.filter((op) => op.isWithinPastWeek);
 
-  // Build "Top 5 Most Promising External US Stocks Forecast" (清單外未來最有看頭的前五名潛力美股)
-  const top5Promising = computeTop5PromisingAssets(
+  // Build "Top 5 Most Promising External US Stocks Forecast" (每週一自動更新清單外前五名潛力美股)
+  const top5Mode = options.top5Mode || 'monday';
+  const { top5Promising, top5WeeklyMeta } = computeTop5PromisingAssets(
     enrichedBySymbol,
     eligibleAssets,
-    traderResults
+    traderResults,
+    timelineDates.at(-1) || '',
+    top5Mode
   );
 
   // Build "Next Entry Watchlist & Estimated Trigger Prices" (下一檔最接近買點的準進場清單)
@@ -663,6 +666,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     benchmarkFinalReturnPct,
     recentWeekOperations,
     top5Promising,
+    top5WeeklyMeta,
     nextEntryWatchlist,
     latestRadar
   });
@@ -675,6 +679,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       initialCapital,
       feeRate,
       marketFilter,
+      top5Mode,
       enabledSymbols: eligibleAssets.map((a) => a.symbol),
       startDate: timelineDates[0] || '',
       endDate: timelineDates.at(-1) || '',
@@ -692,6 +697,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     recentOperations,
     recentWeekOperations,
     top5Promising,
+    top5WeeklyMeta,
     nextEntryWatchlist,
     dailyBriefing,
     latestRadar
@@ -699,33 +705,77 @@ export function runArenaSimulation(rawMarketData, options = {}) {
 }
 
 /**
+ * Helper to compute the Monday of the week for a given YYYY-MM-DD date string
+ * and the upcoming Monday auto-update date.
+ */
+function getWeeklyMondaySchedule(endDateStr) {
+  const baseDate = endDateStr ? new Date(`${endDateStr}T00:00:00Z`) : new Date();
+  const dayOfWeek = baseDate.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+
+  const mondayDateObj = new Date(baseDate);
+  mondayDateObj.setUTCDate(baseDate.getUTCDate() + diffToMonday);
+  const weekMondayDate = mondayDateObj.toISOString().slice(0, 10);
+
+  const nextMondayObj = new Date(mondayDateObj);
+  nextMondayObj.setUTCDate(mondayDateObj.getUTCDate() + 7);
+  const nextMondayDate = nextMondayObj.toISOString().slice(0, 10);
+
+  return { weekMondayDate, nextMondayDate };
+}
+
+/**
  * Computes the Top 5 Most Promising External US Stocks for the Next 30 Days
  * strictly from DISCOVERY_CANDIDATE_UNIVERSE (US stocks NOT currently in the active trading list).
+ * When top5Mode === 'monday' (default), the ranking is anchored to this week's Monday bar
+ * and tracks week-to-date (WTD) performance from Monday's anchor price.
  */
-function computeTop5PromisingAssets(enrichedBySymbol, eligibleAssets, traderResults) {
+function computeTop5PromisingAssets(
+  enrichedBySymbol,
+  eligibleAssets,
+  traderResults,
+  endDateStr = '',
+  top5Mode = 'monday'
+) {
   const activeSymbolsSet = new Set([
     ...ASSET_UNIVERSE.map((a) => a.symbol),
     ...eligibleAssets.map((a) => a.symbol)
   ]);
 
-  const spyLatest = enrichedBySymbol[BENCHMARK_SYMBOL]?.at(-1);
-  const regime = {
-    spyBullish: spyLatest ? spyLatest.close >= spyLatest.sma50 * 0.985 : true,
-    spyShortTermBull: spyLatest
-      ? spyLatest.close >= spyLatest.sma20 * 0.99 || spyLatest.ema8 >= spyLatest.ema21
-      : true
-  };
+  const { weekMondayDate, nextMondayDate } = getWeeklyMondaySchedule(endDateStr);
 
   // Strictly filter to external discovery US stocks NOT in the current watchlist
   const externalCandidates = DISCOVERY_CANDIDATE_UNIVERSE.filter(
     (c) => !activeSymbolsSet.has(c.symbol) && (enrichedBySymbol[c.symbol] || []).length > 0
   );
 
+  let anchorTradingDate = weekMondayDate;
+
   const scored = externalCandidates.map((cand) => {
     const bars = enrichedBySymbol[cand.symbol] || [];
-    const r = bars.at(-1);
+    const latestBar = bars.at(-1);
 
-    // Evaluate all 3 AI Traders on this external stock's real latest indicators
+    // Find this week's Monday trading bar (first bar >= weekMondayDate, or latest bar <= weekMondayDate)
+    let mondayBar =
+      bars.find((b) => b.date >= weekMondayDate) ||
+      bars.slice().reverse().find((b) => b.date <= weekMondayDate) ||
+      latestBar;
+
+    // Evaluation bar: Monday bar when in 'monday' weekly lock mode, or latestBar when in 'live' preview mode
+    const r = top5Mode === 'monday' ? mondayBar : latestBar;
+    anchorTradingDate = mondayBar.date;
+
+    const spyBars = enrichedBySymbol[BENCHMARK_SYMBOL] || [];
+    const spyRefBar =
+      spyBars.find((b) => b.date === r.date) || spyBars.at(-1);
+    const regime = {
+      spyBullish: spyRefBar ? spyRefBar.close >= spyRefBar.sma50 * 0.985 : true,
+      spyShortTermBull: spyRefBar
+        ? spyRefBar.close >= spyRefBar.sma20 * 0.99 || spyRefBar.ema8 >= spyRefBar.ema21
+        : true
+    };
+
+    // Evaluate all 3 AI Traders on this external stock's evaluation bar
     const signalsByTrader = {};
     for (const tr of traderResults) {
       signalsByTrader[tr.trader.id] = evaluateTraderSignal(tr.trader.id, r, null, regime);
@@ -784,6 +834,13 @@ function computeTop5PromisingAssets(enrichedBySymbol, eligibleAssets, traderResu
     const downsideRiskPct = Math.max(2.5, ((r.close - stopLossPrice) / r.close) * 100);
     const rewardRiskRatio = projectedUpsidePct / downsideRiskPct;
 
+    const mondayAnchorPrice = mondayBar.close;
+    const currentPrice = latestBar.close;
+    const weekToDateReturnPct =
+      mondayAnchorPrice > 0
+        ? ((currentPrice - mondayAnchorPrice) / mondayAnchorPrice) * 100
+        : 0;
+
     // Build specific catalyst bullet points (Fundamental Theme + Technical Structure + AI View)
     const catalystsZh = [];
     if (cand.thesisZh) {
@@ -791,7 +848,7 @@ function computeTop5PromisingAssets(enrichedBySymbol, eligibleAssets, traderResu
     }
     if (r.close > r.sma50 && r.sma50SlopePct > 0) {
       catalystsZh.push(
-        `中長線多頭排列：現價 ($${r.close.toFixed(2)}) 站穩上揚 50日生命線 ($${r.sma50.toFixed(2)}，斜率 +${r.sma50SlopePct.toFixed(2)}%)，近 20 日動能 ${r.roc20 >= 0 ? '+' : ''}${r.roc20.toFixed(1)}%`
+        `中長線多頭排列：股價 ($${r.close.toFixed(2)}) 站穩上揚 50日生命線 ($${r.sma50.toFixed(2)}，斜率 +${r.sma50SlopePct.toFixed(2)}%)，近 20 日動能 ${r.roc20 >= 0 ? '+' : ''}${r.roc20.toFixed(1)}%`
       );
     } else if (r.zScore20 <= -0.8) {
       catalystsZh.push(
@@ -804,7 +861,7 @@ function computeTop5PromisingAssets(enrichedBySymbol, eligibleAssets, traderResu
     }
     if (bullishTraders.length > 0) {
       catalystsZh.push(
-        `AI 量化篩選推薦：獲 ${bullishTraders.join('、')} AI 點名列為清單外高勝率潛力美股`
+        `AI 週一選股共識：獲 ${bullishTraders.join('、')} AI 點名列為清單外高勝率潛力美股`
       );
     } else {
       catalystsZh.push(
@@ -830,12 +887,15 @@ function computeTop5PromisingAssets(enrichedBySymbol, eligibleAssets, traderResu
       category: cand.category,
       color: cand.color,
       isExternalDiscovery: true,
-      currentPrice: r.close,
-      dailyReturnPct: r.dailyReturnPct,
-      roc20: r.roc20,
-      rsi14: r.rsi14,
-      zScore20: r.zScore20,
-      sma50: r.sma50,
+      mondayAnchorDate: mondayBar.date,
+      mondayAnchorPrice,
+      currentPrice,
+      weekToDateReturnPct,
+      dailyReturnPct: latestBar.dailyReturnPct,
+      roc20: latestBar.roc20,
+      rsi14: latestBar.rsi14,
+      zScore20: latestBar.zScore20,
+      sma50: latestBar.sma50,
       outlookScore,
       consensusLabelZh,
       bullishTradersCount: bullishTraders.length,
@@ -852,10 +912,21 @@ function computeTop5PromisingAssets(enrichedBySymbol, eligibleAssets, traderResu
 
   scored.sort((a, b) => b.outlookScore - a.outlookScore || b.roc20 - a.roc20);
 
-  return scored.slice(0, 5).map((item, idx) => ({
+  const top5Promising = scored.slice(0, 5).map((item, idx) => ({
     ...item,
     rank: idx + 1
   }));
+
+  const top5WeeklyMeta = {
+    mode: top5Mode,
+    weekMondayDate,
+    anchorTradingDate,
+    latestTradingDate: endDateStr,
+    nextMondayDate,
+    scheduleLabelZh: `每週一自動更新（本週定錨日：${anchorTradingDate} · 下週一更新日：${nextMondayDate}）`
+  };
+
+  return { top5Promising, top5WeeklyMeta };
 }
 
 /**

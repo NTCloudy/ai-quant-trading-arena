@@ -17,6 +17,7 @@ const state = {
   recentOpsWindow: 'week', // 'week' (default: past 1 week) | 'all'
   recentOpsTraderFilter: 'all', // 'all' | 'alpha-momentum' | 'sigma-reversion' | 'titan-multifactor'
   recentOpsFilter: 'all', // 'all' | 'BUY' | 'SELL' | 'OPEN'
+  top5Mode: 'monday', // 'monday' (weekly Monday auto-anchor) | 'live' (daily live preview)
   equityChartMode: 'return', // 'return' | 'dollar' | 'drawdown'
   ledgerTab: 'closed', // 'closed' | 'orders'
   arenaResult: null,
@@ -167,6 +168,17 @@ function bindControls() {
     renderRecentOperationsSection();
   });
 
+  // Top 5 Weekly Monday vs Live Preview pills
+  document.getElementById('top5-mode-pills')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-top5-mode]');
+    if (!btn) return;
+    state.top5Mode = btn.dataset.top5Mode;
+    document
+      .querySelectorAll('#top5-mode-pills .seg-pill')
+      .forEach((el) => el.classList.toggle('active', el === btn));
+    recomputeAndRender(false);
+  });
+
   // Equity chart mode pills
   document.getElementById('equity-mode-pills')?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-equity-mode]');
@@ -280,6 +292,7 @@ function recomputeAndRender(selectChampion = false) {
     initialCapital: state.initialCapital,
     feeRate: state.feeRate,
     marketFilter: state.marketFilter,
+    top5Mode: state.top5Mode,
     enabledSymbols: Array.from(state.enabledSymbols)
   });
 
@@ -841,13 +854,21 @@ function renderRecentOperationsSection() {
 
 function renderTop5PromisingSection() {
   const grid = document.getElementById('top5-promising-grid');
+  const descEl = document.getElementById('top5-weekly-schedule-desc');
   if (!grid || !state.arenaResult?.top5Promising) return;
+
+  const meta = state.arenaResult.top5WeeklyMeta;
+  if (descEl && meta) {
+    descEl.innerHTML = `🗓️ <strong>每週一 GitHub Actions 自動更新機制</strong>：本週一定錨日 <strong style="color:var(--accent-cyan);">${meta.anchorTradingDate}</strong> · 下一次自動換倉更新日 <strong style="color:#fde047;">${meta.nextMondayDate} (週一)</strong> · 嚴選「不在目前 14 檔交易清單內」的華爾街高成長美股並追蹤本週實盤表現`;
+  }
 
   const list = state.arenaResult.top5Promising;
   grid.innerHTML = list
     .map((item) => {
       const isTop1 = item.rank === 1;
       const isUp = item.dailyReturnPct >= 0;
+      const wtdPct = Number.isFinite(item.weekToDateReturnPct) ? item.weekToDateReturnPct : 0;
+      const isWtdUp = wtdPct >= 0;
       return `
         <article
           class="top5-card ${isTop1 ? 'rank-top1' : ''}"
@@ -859,7 +880,7 @@ function renderTop5PromisingSection() {
                 ${isTop1 ? '👑 TOP #1 首選' : `🚀 TOP #${item.rank}`}
               </span>
               <span class="mono" style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(168,85,247,0.18);border:1px solid rgba(168,85,247,0.45);color:#e9d5ff;">
-                🆕 清單外潛力美股
+                🆕 清單外潛力美股 · 週一選股
               </span>
             </div>
             <div class="top5-score-box">
@@ -876,6 +897,9 @@ function renderTop5PromisingSection() {
               </span>
             </div>
             <span class="top5-name">${item.nameZh} · ${item.sectorZh || ''}</span>
+            <div class="mono" style="font-size:11px;margin-top:3px;color:var(--text-secondary);">
+              週一基準 $${(item.mondayAnchorPrice || item.currentPrice).toFixed(2)} → 本週表現 <strong class="${isWtdUp ? 'pos-val' : 'neg-val'}">${fmtPct(wtdPct, 2)}</strong>
+            </div>
           </div>
 
           <div class="top5-consensus-tag">

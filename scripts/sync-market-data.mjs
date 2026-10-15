@@ -190,6 +190,22 @@ async function main() {
 
   await fs.writeFile(syncHistoryPath, JSON.stringify(syncHistory, null, 2), 'utf8');
 
+  // Save Weekly Monday Top 5 External US Stocks Discovery report
+  const weeklyTop5Path = path.join(DATA_DIR, 'weekly-top5-discovery.json');
+  const weeklyTop5Payload = {
+    updatedAt: marketSnapshot.fetchedAt,
+    meta: sim1M.top5WeeklyMeta,
+    top5Promising: sim1M.top5Promising
+  };
+  await fs.writeFile(weeklyTop5Path, JSON.stringify(weeklyTop5Payload, null, 2), 'utf8');
+
+  console.log(`\n🗓️ Weekly Monday Top 5 External US Stocks (${sim1M.top5WeeklyMeta.scheduleLabelZh}):`);
+  for (const p of sim1M.top5Promising) {
+    console.log(
+      `   #${p.rank} ${p.displayTicker.padEnd(14)} | Score: ${p.outlookScore}/100 | Monday Anchor: $${p.mondayAnchorPrice.toFixed(2)} -> Current: $${p.currentPrice.toFixed(2)} (WTD: ${(p.weekToDateReturnPct >= 0 ? '+' : '') + p.weekToDateReturnPct.toFixed(2)}%) | 30D Target: $${p.targetPrice30d.toFixed(2)}`
+    );
+  }
+
   console.log(`\n🏆 1-Month (22 Trading Days: ${sim1M.config.startDate} → ${sim1M.config.endDate}) AI Arena Leaderboard:`);
   console.log(`   Benchmark (${sim1M.benchmark.symbol}): ${sim1M.benchmark.finalReturnPct >= 0 ? '+' : ''}${sim1M.benchmark.finalReturnPct.toFixed(2)}% ($${sim1M.benchmark.finalEquity.toFixed(2)})`);
   for (const [idx, item] of sim1M.leaderboard.entries()) {
