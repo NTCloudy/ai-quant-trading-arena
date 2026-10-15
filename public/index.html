@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Quant Trading Arena — 3 位 AI 操盤手真實美股與加密貨幣模擬交易戰情室</title>
+  <meta
+    name="description"
+    content="串接 Yahoo Finance 真實美股 (NVDA, TSLA, AAPL, MSFT, META, AMZN, GOOGL, QQQ, SPY) 與加密貨幣 (BTC, ETH) 歷史與每日收盤報價，由 3 位量化 AI 操盤手自動判斷進場與退場點位並追蹤報酬率。"
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- Top Real-Market Ticker Tape -->
+  <div class="ticker-bar" aria-label="Real-time market quotes">
+    <div class="ticker-badge">
+      <span class="pulse-dot"></span>
+      <span data-i18n="tickerLiveBadge">REAL MARKET FEED (YAHOO FINANCE)</span>
+    </div>
+    <div class="ticker-track-wrap">
+      <div class="ticker-track" id="ticker-tape"></div>
+    </div>
+    <div class="ticker-sync-meta" id="market-sync-timestamp"></div>
+  </div>
+
+  <!-- Main Terminal Container -->
+  <div class="terminal-shell">
+    <!-- Terminal Header -->
+    <header class="terminal-header">
+      <div class="brand-block">
+        <div class="brand-eyebrow">
+          <span class="eyebrow-tag">QUANTITATIVE PAPER TRADING TERMINAL</span>
+          <span class="eyebrow-sep">·</span>
+          <span class="eyebrow-sub" id="arena-date-range-badge">載入真實行情中...</span>
+        </div>
+        <h1 class="brand-title" data-i18n="appTitle">
+          AI 量化模擬交易競技場 <span class="title-accent">3 AI Traders Arena</span>
+        </h1>
+        <p class="brand-subtitle" data-i18n="appSubtitle">
+          100% 同步現實美股與加密貨幣真實股價（OHLCV）· 3 位不同流派 AI 操盤手全自動執行買進／賣出／停損停利 · 即時檢驗 1 個月～1 年真實報酬率與 Alpha
+        </p>
+      </div>
+
+      <div class="header-actions">
+        <button type="button" class="btn-terminal btn-sync" id="btn-open-sync-modal">
+          <span class="btn-icon">⚡</span>
+          <span data-i18n="btnSyncMarket">同步最新真實股價 (Auto Cron)</span>
+        </button>
+        <button type="button" class="btn-terminal btn-lang" id="btn-lang-toggle">
+          EN / 繁中
+        </button>
+        <a
+          href="https://github.com/NTCloudy/ai-quant-trading-arena"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-terminal btn-github"
+        >
+          GitHub Repo ↗
+        </a>
+      </div>
+    </header>
+
+    <!-- Simulation Parameter Control Bar -->
+    <section class="control-deck" aria-label="Simulation Controls">
+      <div class="control-group">
+        <label class="control-label" data-i18n="lblPeriod">⏱️ 追蹤／回測時間區間 (Time Horizon)</label>
+        <div class="segmented-pills" id="period-pills">
+          <button type="button" class="seg-pill active" data-period="22">1 個月 (30D)</button>
+          <button type="button" class="seg-pill" data-period="44">2 個月 (60D)</button>
+          <button type="button" class="seg-pill" data-period="63">3 個月 (90D)</button>
+          <button type="button" class="seg-pill" data-period="126">半年 (180D)</button>
+          <button type="button" class="seg-pill" data-period="251">1 年 (365D)</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label" data-i18n="lblCapital">💰 初始虛擬本金 (Virtual Capital)</label>
+        <select id="select-capital" class="terminal-select">
+          <option value="10000">$10,000 USD</option>
+          <option value="50000">$50,000 USD</option>
+          <option value="100000" selected>$100,000 USD (標準機構倉)</option>
+          <option value="500000">$500,000 USD</option>
+          <option value="1000000">$1,000,000 USD</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label" data-i18n="lblMarketFilter">🌎 交易市場範圍 (Market Universe)</label>
+        <select id="select-market-filter" class="terminal-select">
+          <option value="all" selected>美股巨頭 + 加密貨幣 (8 美股 + 2 Crypto)</option>
+          <option value="us-stock">純美股與指數 ETF (US Equities Only)</option>
+          <option value="crypto">純加密貨幣 (BTC-USD & ETH-USD)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label" data-i18n="lblFeeRate">⚖️ 手續費與滑價摩擦 (Fee + Slippage)</label>
+        <select id="select-fee-rate" class="terminal-select">
+          <option value="0.001" selected>0.10% 真實券商手續費＋滑價</option>
+          <option value="0">0.00% 零手續費理想環境</option>
+          <option value="0.002">0.20% 高摩擦壓力測試</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Section 1: 3 AI Traders PK Leaderboard -->
+    <section class="arena-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title" data-i18n="secLeaderboardTitle">
+            🏆 3 位 AI 操盤手實盤模擬 PK 排行榜（點擊卡片切換檢視該 AI 持倉與明細）
+          </h2>
+          <p class="section-desc" id="leaderboard-summary-text"></p>
+        </div>
+        <div class="benchmark-pill" id="benchmark-summary-pill"></div>
+      </div>
+
+      <div class="traders-grid" id="traders-leaderboard-grid"></div>
+    </section>
+
+    <!-- Section 2: Portfolio Equity Curve & Drawdown Comparison -->
+    <section class="arena-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title" data-i18n="secEquityTitle">
+            📈 虛擬資產淨值曲線 ＆ 累積報酬率對比（3 位 AI 操盤手 vs. SPY 標普 500 大盤）
+          </h2>
+          <p class="section-desc" data-i18n="secEquityDesc">
+            滑鼠移至圖表上可逐日檢視 3 位 AI 操盤手的虛擬資金淨值、當日報酬率與大盤差距（Alpha）
+          </p>
+        </div>
+        <div class="segmented-pills" id="equity-mode-pills">
+          <button type="button" class="seg-pill active" data-equity-mode="return">累積報酬率 (%)</button>
+          <button type="button" class="seg-pill" data-equity-mode="dollar">虛擬總資產 ($ USD)</button>
+          <button type="button" class="seg-pill" data-equity-mode="drawdown">最大回撤水下圖 (Drawdown %)</button>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-legend" id="equity-chart-legend"></div>
+        <div class="canvas-wrap equity-canvas-wrap">
+          <canvas id="equity-canvas"></canvas>
+          <div class="chart-tooltip hidden" id="equity-tooltip"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Interactive K-Line Candlestick Chart with AI Entry/Exit Markers -->
+    <section class="arena-section" id="kline-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title" data-i18n="secKlineTitle">
+            🕯️ 真實股價 K 線圖 ＆ AI 進場 (`BUY`)／退場 (`SELL`) 點位顯微鏡
+          </h2>
+          <p class="section-desc" data-i18n="secKlineDesc">
+            任選一檔真實美股或加密貨幣，直接檢視 AI 在哪一根 K 線買進、哪一根 K 線停利或停損退場（含布林通道、SMA50 生命線與 RSI 指標）
+          </p>
+        </div>
+        <div class="kline-controls">
+          <button type="button" class="btn-terminal btn-replay" id="btn-kline-replay">
+            ▶ 逐日回放進出場動畫
+          </button>
+        </div>
+      </div>
+
+      <!-- Asset Selector Pills -->
+      <div class="asset-selector-bar" id="kline-asset-pills"></div>
+
+      <div class="chart-card">
+        <div class="kline-top-bar" id="kline-header-stats"></div>
+        <div class="canvas-wrap kline-canvas-wrap">
+          <canvas id="kline-canvas"></canvas>
+          <div class="chart-tooltip hidden" id="kline-tooltip"></div>
+        </div>
+        <!-- Single-Asset Signals & Round-Trip Summary -->
+        <div class="kline-signals-strip" id="kline-signals-strip"></div>
+      </div>
+    </section>
+
+    <!-- Section 4: Selected AI Trader's Active Positions & Full Trade Execution Log -->
+    <section class="arena-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title" id="ledger-section-title">
+            💼 AI 操盤手虛擬持倉帳本 ＆ 進出場決策理由日誌
+          </h2>
+          <p class="section-desc" data-i18n="secLedgerDesc">
+            完整揭露每一筆虛擬資金的買進價、賣出價、持有天數、手續費成本，以及 AI 當下決定進場與退場的量化指標依據
+          </p>
+        </div>
+        <div class="segmented-pills" id="trader-select-pills"></div>
+      </div>
+
+      <div class="ledger-two-col">
+        <!-- Active Open Positions -->
+        <div class="panel-card">
+          <div class="panel-card-header">
+            <h3 class="panel-card-title" data-i18n="subOpenPositions">🟢 目前持倉中部位 (Active Open Positions)</h3>
+            <span class="panel-badge" id="open-positions-badge">0 檔持倉</span>
+          </div>
+          <div class="table-scroll" id="open-positions-container"></div>
+        </div>
+
+        <!-- Portfolio Allocation Breakdown -->
+        <div class="panel-card">
+          <div class="panel-card-header">
+            <h3 class="panel-card-title" data-i18n="subAllocation">📊 虛擬資金配置與風控指標 (Capital Allocation)</h3>
+            <span class="panel-badge" id="exposure-badge">現金 0%</span>
+          </div>
+          <div id="allocation-breakdown-container"></div>
+        </div>
+      </div>
+
+      <!-- Closed Trades & Chronological Order Execution Journal -->
+      <div class="panel-card mt-16">
+        <div class="panel-card-header">
+          <div class="panel-tabs">
+            <button type="button" class="panel-tab active" data-ledger-tab="closed" id="tab-closed-trades">
+              已平倉完整來回交易 (Closed Round-Trips)
+            </button>
+            <button type="button" class="panel-tab" data-ledger-tab="orders" id="tab-order-events">
+              逐筆委託成交流水帳 (All BUY / SELL Executions)
+            </button>
+          </div>
+          <span class="panel-badge" id="closed-trades-badge">0 筆交易</span>
+        </div>
+        <div class="table-scroll" id="closed-trades-container"></div>
+      </div>
+    </section>
+
+    <!-- Section 5: Today's Real-Time AI Signal Radar across All 11 Assets -->
+    <section class="arena-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title" data-i18n="secRadarTitle">
+            📡 最新交易日 AI 實盤訊號雷達（11 檔美股與加密貨幣即時診斷）
+          </h2>
+          <p class="section-desc" data-i18n="secRadarDesc">
+            根據最新一個交易日的真實收盤價與技術指標，匯總 3 位 AI 操盤手對「當下應買進、賣出、續抱或觀望」的最新決策
+          </p>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="table-scroll">
+          <table class="quant-table" id="radar-table">
+            <thead>
+              <tr>
+                <th>標的 (Ticker)</th>
+                <th>最新真實收盤價</th>
+                <th>單日漲跌</th>
+                <th>5日 / 20日動能</th>
+                <th>RSI(14)</th>
+                <th>布林 %B / Z-Score</th>
+                <th>SMA50 生命線趨勢</th>
+                <th>⚡ Alpha 動能 AI 決策</th>
+                <th>🎯 Sigma 抄底 AI 決策</th>
+                <th>🛡️ Titan 多因子 AI 決策</th>
+              </tr>
+            </thead>
+            <tbody id="radar-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Sync & Auto-Cron Modal -->
+  <div class="modal-backdrop hidden" id="sync-modal">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>⚡ 真實股價同步 ＆ GitHub Actions 每日自動盯盤設定</h3>
+        <button type="button" class="modal-close" id="btn-close-sync-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="sync-status-box">
+          <div class="sync-stat-row">
+            <span>資料來源 (Data Feed)：</span>
+            <strong>Yahoo Finance v8 OHLCV API (美股 + 加密貨幣真實報價)</strong>
+          </div>
+          <div class="sync-stat-row">
+            <span>最近一次同步時間：</span>
+            <strong id="modal-last-sync-time">-</strong>
+          </div>
+          <div class="sync-stat-row">
+            <span>自動排程 (GitHub Actions Cron)：</span>
+            <strong>每個美股交易日收盤後自動抓取最新股價並執行 AI 交易</strong>
+          </div>
+        </div>
+
+        <p class="modal-note">
+          💡 <strong>如何運作？</strong> 本平台透過 GitHub Actions 的 <code>market-sync.yml</code> 排程，每天自動向 Yahoo Finance 抓取 11 檔標的之最新真實日 K 線，讓 3 位 AI 操盤手根據最新行情執行買賣並更新 GitHub Pages 帳本。你也可以在下方輸入 GitHub Personal Access Token (<code>workflow</code> 權限) 立即手動觸發雲端同步，或直接點選「瀏覽器即時重算」。
+        </p>
+
+        <div class="token-input-group">
+          <label for="input-gh-token">GitHub PAT Token (選填，僅儲存於本機 localStorage 用於觸發 workflow_dispatch)：</label>
+          <input
+            type="password"
+            id="input-gh-token"
+            class="terminal-input"
+            placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+          />
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-terminal btn-primary" id="btn-trigger-gh-sync">
+            🚀 觸發 GitHub Actions 雲端更新真實股價
+          </button>
+          <button type="button" class="btn-terminal" id="btn-local-recalc">
+            🔄 立即重新執行本地 AI 模擬撮合
+          </button>
+        </div>
+        <div class="sync-feedback" id="sync-feedback-msg"></div>
+
+        <h4 class="sync-history-title">📅 每日自動盯盤同步紀錄 (Recent Market Sync Log)</h4>
+        <div class="sync-history-list" id="sync-history-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
