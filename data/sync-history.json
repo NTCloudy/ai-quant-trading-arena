@@ -1,48 +1,48 @@
 [
   {
-    "syncedAt": "2026-10-15T03:54:53.607Z",
+    "syncedAt": "2026-10-15T04:41:43.386Z",
     "marketDate": "2026-10-14",
     "trigger": "manual",
-    "runNumber": 1,
+    "runNumber": 2,
     "spyClose": 769.6,
-    "btcClose": 80762.67,
+    "btcClose": 81453.02,
     "nvdaClose": 221.3,
     "benchmark1MReturnPct": 1.61,
     "leader1M": {
-      "id": "sigma-reversion",
-      "nameZh": "Sigma 波段抄底型 AI",
-      "returnPct": 5.74,
-      "equity": 105735.79
+      "id": "alpha-momentum",
+      "nameZh": "Alpha 動能突破型 AI",
+      "returnPct": 6.64,
+      "equity": 106642.02
     },
     "traders1M": {
       "alpha-momentum": {
-        "returnPct": 4.82,
-        "equity": 104824.21,
+        "returnPct": 6.64,
+        "equity": 106642.02,
         "openPositions": [
           "AAPL",
-          "MSFT",
-          "NVDA",
-          "META"
+          "SPY",
+          "META",
+          "QQQ"
         ]
       },
       "sigma-reversion": {
-        "returnPct": 5.74,
-        "equity": 105735.79,
+        "returnPct": 5.16,
+        "equity": 105157.53,
         "openPositions": [
           "SPY",
           "AAPL",
           "BTC-USD",
-          "META"
+          "NVDA"
         ]
       },
       "titan-multifactor": {
-        "returnPct": 5.35,
-        "equity": 105353.2,
+        "returnPct": 4.09,
+        "equity": 104093.68,
         "openPositions": [
-          "MSFT",
-          "NVDA",
           "SPY",
-          "META"
+          "AAPL",
+          "NVDA",
+          "TSLA"
         ]
       }
     }

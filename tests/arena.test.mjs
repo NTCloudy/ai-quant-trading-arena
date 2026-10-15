@@ -94,11 +94,18 @@ test('Past-Week Operations, Top 5 Promising Forecast, Next Entry Watchlist, Dail
     assert.ok(op.type === 'BUY' || op.type === 'SELL');
   }
 
-  // 2. Top 5 Promising Forecast
+  // 2. Top 5 Promising Forecast must be 100% external US stocks NOT in ASSET_UNIVERSE
+  const activeWatchlistSet = new Set(ASSET_UNIVERSE.map((a) => a.symbol));
   assert.equal(sim.top5Promising.length, 5);
   for (let i = 0; i < 5; i++) {
     const pick = sim.top5Promising[i];
     assert.equal(pick.rank, i + 1);
+    assert.equal(
+      activeWatchlistSet.has(pick.symbol),
+      false,
+      `${pick.symbol} must NOT be in the current ASSET_UNIVERSE watchlist`
+    );
+    assert.equal(pick.isExternalDiscovery, true);
     assert.ok(pick.outlookScore >= 40 && pick.outlookScore <= 99);
     assert.ok(pick.targetPrice30d > pick.currentPrice);
     assert.ok(pick.stopLossPrice < pick.currentPrice);

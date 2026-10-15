@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ASSET_UNIVERSE } from '../src/universe.mjs';
+import { ASSET_UNIVERSE, ALL_SYNC_ASSETS } from '../src/universe.mjs';
 import { runArenaSimulation } from '../src/simulator.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -96,10 +96,11 @@ async function main() {
   const symbolsPayload = {};
   let successCount = 0;
 
-  console.log(`📡 Syncing real-world market data from Yahoo Finance for ${ASSET_UNIVERSE.length} assets...`);
+  console.log(`📡 Syncing real-world market data from Yahoo Finance for ${ALL_SYNC_ASSETS.length} assets (${ASSET_UNIVERSE.length} active + ${ALL_SYNC_ASSETS.length - ASSET_UNIVERSE.length} external discovery)...`);
 
-  for (const asset of ASSET_UNIVERSE) {
+  for (const asset of ALL_SYNC_ASSETS) {
     try {
+      await new Promise((r) => setTimeout(r, 80));
       const symbolData = await fetchYahooSymbolBars(
         asset.symbol,
         asset.yahooSymbol || asset.symbol,
@@ -134,7 +135,7 @@ async function main() {
   };
 
   await fs.writeFile(snapshotPath, JSON.stringify(marketSnapshot, null, 2), 'utf8');
-  console.log(`\n💾 Saved real market snapshot to data/market-snapshot.json (${successCount}/${ASSET_UNIVERSE.length} live fetched)`);
+  console.log(`\n💾 Saved real market snapshot to data/market-snapshot.json (${successCount}/${ALL_SYNC_ASSETS.length} live fetched)`);
 
   // Run default 1-Month (22 trading days ~ 30 calendar days) arena check
   const sim1M = runArenaSimulation(marketSnapshot, {

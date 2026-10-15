@@ -1,4 +1,9 @@
-import { ASSET_UNIVERSE, BENCHMARK_SYMBOL, getAssetMeta } from './universe.mjs';
+import {
+  ASSET_UNIVERSE,
+  DISCOVERY_CANDIDATE_UNIVERSE,
+  BENCHMARK_SYMBOL,
+  getAssetMeta
+} from './universe.mjs';
 import { enrichBarsWithIndicators } from './indicators.mjs';
 import { AI_TRADERS, evaluateTraderSignal } from './traders.mjs';
 
@@ -640,8 +645,12 @@ export function runArenaSimulation(rawMarketData, options = {}) {
 
   const recentWeekOperations = recentOperations.filter((op) => op.isWithinPastWeek);
 
-  // Build "Top 5 Most Promising Stocks & Assets Forecast" (AI 預測未來最有看頭的前五名股票)
-  const top5Promising = computeTop5PromisingAssets(latestRadar, traderResults);
+  // Build "Top 5 Most Promising External US Stocks Forecast" (清單外未來最有看頭的前五名潛力美股)
+  const top5Promising = computeTop5PromisingAssets(
+    enrichedBySymbol,
+    eligibleAssets,
+    traderResults
+  );
 
   // Build "Next Entry Watchlist & Estimated Trigger Prices" (下一檔最接近買點的準進場清單)
   const nextEntryWatchlist = computeNextEntryWatchlist(latestRadar, traderResults);
@@ -690,13 +699,38 @@ export function runArenaSimulation(rawMarketData, options = {}) {
 }
 
 /**
- * Computes the Top 5 Most Promising Assets for the Next 30 Days across all eligible assets.
+ * Computes the Top 5 Most Promising External US Stocks for the Next 30 Days
+ * strictly from DISCOVERY_CANDIDATE_UNIVERSE (US stocks NOT currently in the active trading list).
  */
-function computeTop5PromisingAssets(latestRadar, traderResults) {
-  const candidates = latestRadar.filter((r) => r.category !== 'us-etf');
-  const pool = candidates.length >= 5 ? candidates : latestRadar;
+function computeTop5PromisingAssets(enrichedBySymbol, eligibleAssets, traderResults) {
+  const activeSymbolsSet = new Set([
+    ...ASSET_UNIVERSE.map((a) => a.symbol),
+    ...eligibleAssets.map((a) => a.symbol)
+  ]);
 
-  const scored = pool.map((r) => {
+  const spyLatest = enrichedBySymbol[BENCHMARK_SYMBOL]?.at(-1);
+  const regime = {
+    spyBullish: spyLatest ? spyLatest.close >= spyLatest.sma50 * 0.985 : true,
+    spyShortTermBull: spyLatest
+      ? spyLatest.close >= spyLatest.sma20 * 0.99 || spyLatest.ema8 >= spyLatest.ema21
+      : true
+  };
+
+  // Strictly filter to external discovery US stocks NOT in the current watchlist
+  const externalCandidates = DISCOVERY_CANDIDATE_UNIVERSE.filter(
+    (c) => !activeSymbolsSet.has(c.symbol) && (enrichedBySymbol[c.symbol] || []).length > 0
+  );
+
+  const scored = externalCandidates.map((cand) => {
+    const bars = enrichedBySymbol[cand.symbol] || [];
+    const r = bars.at(-1);
+
+    // Evaluate all 3 AI Traders on this external stock's real latest indicators
+    const signalsByTrader = {};
+    for (const tr of traderResults) {
+      signalsByTrader[tr.trader.id] = evaluateTraderSignal(tr.trader.id, r, null, regime);
+    }
+
     // 1. Trend Structure & SMA50 Slope (0 - 34)
     let trendPts = 0;
     if (r.close > r.sma50) trendPts += 14;
@@ -713,89 +747,89 @@ function computeTop5PromisingAssets(latestRadar, traderResults) {
     if (r.ema8 >= r.ema21 * 0.995) momPts += 10;
 
     // 3. Valuation / Pullback Upside Room (0 - 22)
-    // Prefer healthy pullback or non-overextended setup (RSI 40~63, Z-Score -1.6 ~ +1.0)
     let roomPts = 0;
     if (r.rsi14 >= 40 && r.rsi14 <= 63) roomPts += 12;
-    else if (r.rsi14 < 40 && r.close >= r.sma50 * 0.95) roomPts += 14; // Oversold coiled spring
+    else if (r.rsi14 < 40 && r.close >= r.sma50 * 0.95) roomPts += 14;
     else if (r.rsi14 <= 68) roomPts += 7;
 
     if (r.zScore20 >= -1.6 && r.zScore20 <= 0.8) roomPts += 10;
     else if (r.zScore20 <= 1.4) roomPts += 5;
 
-    // 4. 3-AI Consensus & Active Holding Conviction (0 - 18)
+    // 4. 3-AI Consensus on this External Stock (0 - 18)
     let aiConsensusPts = 0;
     const bullishTraders = [];
     for (const tr of traderResults) {
-      const sig = r.signalsByTrader[tr.trader.id];
-      const isHeld = tr.activePositions.some((p) => p.symbol === r.symbol);
-      if (sig?.action === 'BUY' || sig?.action === 'HOLD' || isHeld) {
+      const sig = signalsByTrader[tr.trader.id];
+      if (sig?.action === 'BUY' || (sig?.conviction || 0) >= 62) {
         aiConsensusPts += 6;
         bullishTraders.push(tr.trader.nameZh.split(' ')[0]);
-      } else if ((sig?.conviction || 0) >= 60) {
+      } else if ((sig?.conviction || 0) >= 52) {
         aiConsensusPts += 3;
       }
     }
 
     const rawScore =
-      trendPts + momPts + roomPts + aiConsensusPts + Math.max(-3, Math.min(4, sharpeMom * 1.2));
-    const outlookScore = Math.min(98, Math.max(40, Math.round(rawScore)));
+      trendPts + momPts + roomPts + aiConsensusPts + Math.max(-3, Math.min(5, sharpeMom * 1.4));
+    const outlookScore = Math.min(98, Math.max(45, Math.round(rawScore)));
 
     // Calculate concrete Buy Zone, 30-Day Target Price, and Stop-Loss Defense Price
     const buyZoneLow = Math.min(r.close * 0.985, r.sma20 * 0.99);
     const buyZoneHigh = r.close * 1.005;
-    const projectedUpsidePct = Math.max(8.5, Math.min(22.0, r.atrPct * 3.8 + Math.max(0, -r.zScore20 * 2.5)));
+    const projectedUpsidePct = Math.max(
+      9.0,
+      Math.min(24.0, r.atrPct * 3.9 + Math.max(0, -r.zScore20 * 2.5))
+    );
     const targetPrice30d = r.close * (1 + projectedUpsidePct / 100);
     const stopLossPrice = Math.min(r.close * 0.958, r.close - 2.2 * r.atr14);
     const downsideRiskPct = Math.max(2.5, ((r.close - stopLossPrice) / r.close) * 100);
     const rewardRiskRatio = projectedUpsidePct / downsideRiskPct;
 
-    // Build specific catalyst bullet points
+    // Build specific catalyst bullet points (Fundamental Theme + Technical Structure + AI View)
     const catalystsZh = [];
+    if (cand.thesisZh) {
+      catalystsZh.push(`產業護城河：${cand.thesisZh}`);
+    }
     if (r.close > r.sma50 && r.sma50SlopePct > 0) {
       catalystsZh.push(
-        `中長線多頭排列：股價 ($${r.close.toFixed(2)}) 穩居上揚 50日生命線 ($${r.sma50.toFixed(2)}，斜率 +${r.sma50SlopePct.toFixed(2)}%) 之上`
+        `中長線多頭排列：現價 ($${r.close.toFixed(2)}) 站穩上揚 50日生命線 ($${r.sma50.toFixed(2)}，斜率 +${r.sma50SlopePct.toFixed(2)}%)，近 20 日動能 ${r.roc20 >= 0 ? '+' : ''}${r.roc20.toFixed(1)}%`
       );
-    } else if (r.zScore20 <= -1.0) {
+    } else if (r.zScore20 <= -0.8) {
       catalystsZh.push(
-        `極度超賣反彈契機：Z-Score 達 ${r.zScore20.toFixed(2)}、RSI(14)=${r.rsi14.toFixed(1)}，短線乖離過大具備強勁均值回歸動能`
-      );
-    }
-    if (r.roc20 > 0) {
-      catalystsZh.push(
-        `資金相對強度領先：近 20 日波段動能 +${r.roc20.toFixed(1)}%，夏普動能比優異`
+        `回檔黃金買點浮現：Z-Score=${r.zScore20.toFixed(2)}、RSI(14)=${r.rsi14.toFixed(1)}，回測支撐下檔風險有限、盈虧比達 ${rewardRiskRatio.toFixed(1)} : 1`
       );
     } else {
       catalystsZh.push(
-        `波段回測支撐位階：目前布林 %B 位於 ${(r.bbPercentB * 100).toFixed(0)}%，下檔風險有限、盈虧比達 ${rewardRiskRatio.toFixed(1)} : 1`
+        `技術位階穩健：RSI(14)=${r.rsi14.toFixed(1)}、布林 %B=${(r.bbPercentB * 100).toFixed(0)}%，蓄勢挑戰前波壓力區`
       );
     }
     if (bullishTraders.length > 0) {
       catalystsZh.push(
-        `AI 操盤手共識加持：獲 ${bullishTraders.join('、')} AI 納入看多／核心持倉名單`
+        `AI 量化篩選推薦：獲 ${bullishTraders.join('、')} AI 點名列為清單外高勝率潛力美股`
       );
     } else {
       catalystsZh.push(
-        `波動率蓄勢待發：日均 ATR 波動率 ${r.atrPct.toFixed(1)}%，突破 $${r.ema8.toFixed(2)} 將觸發順勢追價訊號`
+        `突破觸發預警：站上 EMA8 ($${r.ema8.toFixed(2)}) 將同步點燃動能與多因子買進訊號`
       );
     }
 
     const consensusLabelZh =
       bullishTraders.length === 3
-        ? '🔥 三大 AI 全數看多共識'
+        ? '🔥 三大 AI 聯合推薦清單外首選'
         : bullishTraders.length === 2
           ? `⚡ ${bullishTraders.join(' + ')} 雙 AI 聯合看多`
           : bullishTraders.length === 1
             ? `🎯 ${bullishTraders[0]} AI 點名看多`
-            : '🔭 高賠率波段轉折潛力';
+            : '🔭 清單外高賠率波段潛力股';
 
     return {
-      symbol: r.symbol,
-      displayTicker: r.displayTicker,
-      name: r.name,
-      nameZh: r.nameZh,
-      sectorZh: r.sectorZh,
-      category: r.category,
-      color: r.color,
+      symbol: cand.symbol,
+      displayTicker: cand.displayTicker || cand.symbol,
+      name: cand.name,
+      nameZh: cand.nameZh,
+      sectorZh: cand.sectorZh,
+      category: cand.category,
+      color: cand.color,
+      isExternalDiscovery: true,
       currentPrice: r.close,
       dailyReturnPct: r.dailyReturnPct,
       roc20: r.roc20,
@@ -816,7 +850,7 @@ function computeTop5PromisingAssets(latestRadar, traderResults) {
     };
   });
 
-  scored.sort((a, b) => b.outlookScore - a.outlookScore);
+  scored.sort((a, b) => b.outlookScore - a.outlookScore || b.roc20 - a.roc20);
 
   return scored.slice(0, 5).map((item, idx) => ({
     ...item,
@@ -967,7 +1001,7 @@ function computeDailyBriefing({
       : '',
     weeklyActionSummaryZh: weekSummaryText,
     topForecastZh: topPick
-      ? `未來 30 天頭號看多首選為【${topPick.displayTicker} ${topPick.nameZh}】（AI 綜合看多指數 ${topPick.outlookScore}/100，目標價 $${topPick.targetPrice30d.toFixed(2)}，潛在空間 +${topPick.projectedUpsidePct.toFixed(1)}%）。`
+      ? `清單外未來 30 天頭號看多潛力美股為【${topPick.displayTicker} ${topPick.nameZh}】（AI 綜合看多指數 ${topPick.outlookScore}/100，目標價 $${topPick.targetPrice30d.toFixed(2)}，潛在空間 +${topPick.projectedUpsidePct.toFixed(1)}%）。`
       : '',
     nextTriggerZh: nextTrigger
       ? `下一檔最接近買點的準進場標的為【${nextTrigger.displayTicker}】（由 ${nextTrigger.traderNameZh} 監控，準備度 ${nextTrigger.readinessPct}%，預計觸發價 $${nextTrigger.triggerPrice.toFixed(2)}）。`

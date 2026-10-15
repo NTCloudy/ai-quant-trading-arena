@@ -27,7 +27,7 @@ const state = {
 
 const WATCHLIST_PRESETS = {
   all: ASSET_UNIVERSE.map((a) => a.symbol),
-  'semi-dram': ['NVDA', 'AMD', 'MU', 'AVGO', 'TSLA', 'QQQ', 'SPY'],
+  'semi-dram': ['NVDA', 'AMD', 'MU', 'TSLA', 'MSFT', 'QQQ', 'SPY'],
   'gold-macro': ['XAUUSD', 'BTC-USD', 'ETH-USD', 'NVDA', 'AMD', 'MU', 'SPY'],
   mag7: ['NVDA', 'AAPL', 'MSFT', 'META', 'AMZN', 'GOOGL', 'TSLA', 'SPY']
 };
@@ -854,9 +854,14 @@ function renderTop5PromisingSection() {
           data-top5-sym="${item.symbol}"
         >
           <div class="top5-head">
-            <span class="top5-rank-pill">
-              ${isTop1 ? '👑 TOP #1 首選' : `🚀 TOP #${item.rank}`}
-            </span>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <span class="top5-rank-pill">
+                ${isTop1 ? '👑 TOP #1 首選' : `🚀 TOP #${item.rank}`}
+              </span>
+              <span class="mono" style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(168,85,247,0.18);border:1px solid rgba(168,85,247,0.45);color:#e9d5ff;">
+                🆕 清單外潛力美股
+              </span>
+            </div>
             <div class="top5-score-box">
               <div class="top5-score-val">${item.outlookScore}<span style="font-size:12px;color:var(--text-secondary);">/100</span></div>
               <div class="top5-score-lbl">AI 看多潛力分</div>
@@ -1345,7 +1350,7 @@ function renderKlineAssetPills() {
   const bar = document.getElementById('kline-asset-pills');
   if (!bar || !state.arenaResult) return;
 
-  bar.innerHTML = ASSET_UNIVERSE.map((asset) => {
+  const corePillsHtml = ASSET_UNIVERSE.map((asset) => {
     const active = asset.symbol === state.selectedSymbol;
     const radarItem = state.arenaResult.latestRadar.find((r) => r.symbol === asset.symbol);
     const priceStr = radarItem ? `$${radarItem.close.toFixed(2)}` : '';
@@ -1358,6 +1363,20 @@ function renderKlineAssetPills() {
       </button>
     `;
   }).join('');
+
+  const externalPillsHtml = (state.arenaResult.top5Promising || [])
+    .map((item) => {
+      const active = item.symbol === state.selectedSymbol;
+      return `
+        <button type="button" class="asset-pill ${active ? 'active' : ''}" data-kline-sym="${item.symbol}" style="border-style:dashed;">
+          <span style="color:#c084fc;">🆕 ${item.displayTicker || item.symbol}</span>
+          <span style="color:#94a3b8;font-size:11px;">$${item.currentPrice.toFixed(2)}</span>
+        </button>
+      `;
+    })
+    .join('');
+
+  bar.innerHTML = corePillsHtml + externalPillsHtml;
 
   bar.querySelectorAll('[data-kline-sym]').forEach((btn) => {
     btn.addEventListener('click', () => {
