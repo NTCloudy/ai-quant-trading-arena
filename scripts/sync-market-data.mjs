@@ -8,8 +8,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(ROOT_DIR, 'data');
 
-async function fetchYahooSymbolBars(symbol, range = '2y', interval = '1d', attempt = 0) {
-  const encoded = encodeURIComponent(symbol);
+async function fetchYahooSymbolBars(symbol, yahooSymbol = symbol, range = '2y', interval = '1d', attempt = 0) {
+  const encoded = encodeURIComponent(yahooSymbol);
   const host = attempt % 2 === 0 ? 'query1.finance.yahoo.com' : 'query2.finance.yahoo.com';
   const url = `https://${host}/v8/finance/chart/${encoded}?range=${range}&interval=${interval}`;
 
@@ -21,7 +21,7 @@ async function fetchYahooSymbolBars(symbol, range = '2y', interval = '1d', attem
 
   if (res.status === 429 && attempt < 3) {
     await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
-    return fetchYahooSymbolBars(symbol, range, interval, attempt + 1);
+    return fetchYahooSymbolBars(symbol, yahooSymbol, range, interval, attempt + 1);
   }
 
   if (!res.ok) {
@@ -100,7 +100,12 @@ async function main() {
 
   for (const asset of ASSET_UNIVERSE) {
     try {
-      const symbolData = await fetchYahooSymbolBars(asset.symbol, '2y', '1d');
+      const symbolData = await fetchYahooSymbolBars(
+        asset.symbol,
+        asset.yahooSymbol || asset.symbol,
+        '2y',
+        '1d'
+      );
       symbolsPayload[asset.symbol] = symbolData;
       successCount += 1;
       console.log(

@@ -19,9 +19,9 @@ export const AI_TRADERS = [
     maxPositions: 4,
     baseAllocation: 0.25,
     strategySummaryZh:
-      '鎖定站在 50 日生命線之上、20 日相對強度領先大盤且均線多頭排列（EMA8 > EMA21 > SMA50）的領頭羊順勢建倉；嚴控下檔停損、讓強勢波段獲利持續奔跑。',
+      '鎖定站在 50 日生命線之上、20 日相對強度領先大盤且均線多頭排列（EMA8 > EMA21 > SMA50）的領頭羊順勢建倉；波段衝高鎖利、跌破支撐果斷換股。',
     strategySummaryEn:
-      'Captures top relative-strength leaders above rising SMA50 when EMA8 > EMA21; cuts losers fast and rides major trends with an asymmetric reward-to-risk profile.'
+      'Captures top relative-strength leaders above rising SMA50 when EMA8 > EMA21; cuts losers fast and locks in swing surges.'
   },
   {
     id: 'sigma-reversion',
@@ -37,7 +37,7 @@ export const AI_TRADERS = [
     maxPositions: 4,
     baseAllocation: 0.24,
     strategySummaryZh:
-      '專精「長多格局下的拉回買點」：嚴格篩選 50 日均線上揚的強勢資產，當短線回測布林中下軌支撐或 RSI 回檔勾頭時逢低承接，反彈創高分批收割。',
+      '專精「長多格局下的拉回買點」：篩選 50 日均線上揚的強勢資產（含 AI 晶片、DRAM 與科技巨頭），當短線回測布林下軌支撐時逢低承接，反彈創高分批收割。',
     strategySummaryEn:
       'Buys tactical pullbacks in structurally rising assets (rising SMA50) when price dips toward Bollinger support and rebounds to the upper band.'
   },
@@ -55,9 +55,9 @@ export const AI_TRADERS = [
     maxPositions: 4,
     baseAllocation: 0.25,
     strategySummaryZh:
-      '結合「季線斜率因子 + 夏普動能比 (ROC20/ATR) + SPY 大盤氣候濾網」，自動剔除空頭下跌資產，核心重倉高夏普值科技巨頭與指數 ETF 實現長線穩健超額報酬。',
+      '結合「季線斜率因子 + 夏普動能比 (ROC20/ATR) + SPY 大盤氣候濾網」，自動剔除空頭弱勢股，核心配置高夏普值科技巨頭、半導體與避險資產。',
     strategySummaryEn:
-      'Combines SMA50 slope, risk-adjusted Sharpe momentum (ROC20/ATR), and an SPY regime filter to compound capital in top-tier secular winners.'
+      'Combines SMA50 slope, risk-adjusted Sharpe momentum (ROC20/ATR), and an SPY regime filter to compound capital in secular winners.'
   }
 ];
 
@@ -95,7 +95,6 @@ function evalAlphaMomentum(bar, position, regime) {
     roc5,
     roc10,
     roc20,
-    atr14,
     atrPct
   } = bar;
 
@@ -109,20 +108,23 @@ function evalAlphaMomentum(bar, position, regime) {
     const peakPrice = Math.max(position.highestPrice || position.entryPrice, close);
     const peakGainPct = ((peakPrice - position.entryPrice) / position.entryPrice) * 100;
 
-    // 1. Parabolic Surge Harvest (+32% gain or +16% with extreme RSI > 78)
-    if (pnlPct >= 32.0 || (pnlPct >= 16.0 && rsi14 >= 78 && macdHist < prevMacdHist)) {
+    // 1. Swing Surge Harvest (+28% or +6.8% when RSI >= 67 / Z-Score >= 1.75)
+    if (
+      pnlPct >= 28.0 ||
+      (pnlPct >= 6.8 && (rsi14 >= 67 || zScore20 >= 1.75))
+    ) {
       return {
         action: 'SELL',
         conviction: 93,
-        tagZh: `波段主升段停利 (+${fmt(pnlPct, 1)}%)`,
-        tagEn: `Parabolic Target Hit (+${fmt(pnlPct, 1)}%)`,
-        reasonZh: `累積報酬達 +${fmt(pnlPct)}%（RSI=${fmt(rsi14, 1)}），主升段超額釋放，高檔獲利了結鎖住勝果。`,
-        reasonEn: `Position gained +${fmt(pnlPct)}% (RSI=${fmt(rsi14, 1)}); locking in major momentum run.`
+        tagZh: `波段衝高達標停利 (+${fmt(pnlPct, 1)}%)`,
+        tagEn: `Momentum Target Hit (+${fmt(pnlPct, 1)}%)`,
+        reasonZh: `累積報酬達 +${fmt(pnlPct)}%（RSI=${fmt(rsi14, 1)}, Z-Score=${fmt(zScore20, 2)}），短線動能衝上高檔超買區，獲利了結鎖住勝果並釋放資金。`,
+        reasonEn: `Position gained +${fmt(pnlPct)}% (RSI=${fmt(rsi14, 1)}, Z=${fmt(zScore20, 2)}); locking in momentum run.`
       };
     }
 
-    // 2. Profit Lock Trailing Stop: once position was up >= 12%, lock in at least 60% of peak gain
-    if (peakGainPct >= 12.0 && pnlPct <= peakGainPct * 0.58) {
+    // 2. Profit Lock Trailing Stop: once position was up >= 10%, lock in at least 58% of peak gain
+    if (peakGainPct >= 10.0 && pnlPct <= peakGainPct * 0.58) {
       return {
         action: 'SELL',
         conviction: 89,
@@ -133,7 +135,7 @@ function evalAlphaMomentum(bar, position, regime) {
       };
     }
 
-    // 3. Trend Breakdown Exit: only exit when price closes decisively below SMA50 AND slope turns negative
+    // 3. Trend Breakdown Exit
     if (position.barsHeld >= 5 && close < sma50 * 0.975 && sma50SlopePct < -0.1 && ema8 < ema21) {
       return {
         action: 'SELL',
@@ -162,7 +164,7 @@ function evalAlphaMomentum(bar, position, regime) {
       conviction: 84,
       tagZh: `多頭順勢續抱 (${pnlPct >= 0 ? '+' : ''}${fmt(pnlPct, 1)}%)`,
       tagEn: `Riding Trend (${pnlPct >= 0 ? '+' : ''}${fmt(pnlPct, 1)}%)`,
-      reasonZh: `穩守 50日生命線 ($${fmt(sma50)}) 之上，季線斜率 +${fmt(sma50SlopePct, 2)}%，浮動損益 ${pnlPct >= 0 ? '+' : ''}${fmt(pnlPct)}%，讓長波段獲利持續奔跑。`,
+      reasonZh: `穩守 50日生命線 ($${fmt(sma50)}) 之上，季線斜率 +${fmt(sma50SlopePct, 2)}%，浮動損益 ${pnlPct >= 0 ? '+' : ''}${fmt(pnlPct)}%，讓獲利持續奔跑。`,
       reasonEn: `Trend intact above rising SMA50 ($${fmt(sma50)}), current PnL ${pnlPct >= 0 ? '+' : ''}${fmt(pnlPct)}%.`
     };
   }
@@ -178,9 +180,9 @@ function evalAlphaMomentum(bar, position, regime) {
   if (rsi14 >= 46 && rsi14 <= 65 && rsi14 >= prevRsi14 - 1) score += 10;
   if (regime.spyShortTermBull) score += 5;
 
-  if (structuralUptrend && emaBullish && atrPct <= 3.6 && score >= 74 && rsi14 <= 66) {
+  if (structuralUptrend && emaBullish && atrPct <= 3.7 && score >= 74 && rsi14 <= 66) {
     const stopLoss = close * 0.958;
-    const takeProfit = close * 1.32;
+    const takeProfit = close * 1.16;
     return {
       action: 'BUY',
       conviction: Math.min(99, score),
@@ -189,18 +191,18 @@ function evalAlphaMomentum(bar, position, regime) {
       takeProfitPrice: takeProfit,
       tagZh: roc5 > 1.2 ? '強勢領頭羊動能買進' : '季線上揚＋均線多頭建倉',
       tagEn: roc5 > 1.2 ? 'Relative Strength Leader Buy' : 'Rising SMA50 + EMA Bull Buy',
-      reasonZh: `股價站穩上揚 50日均線 ($${fmt(sma50)}，斜率 +${fmt(sma50SlopePct, 2)}%)，20日動能 +${fmt(roc20, 1)}%、EMA8 > EMA21 且 RSI(14)=${fmt(rsi14, 1)}（綜合動能分 ${score}/100），順勢建倉強勢股（停損 $${fmt(stopLoss)}）。`,
+      reasonZh: `股價站穩上揚 50日均線 ($${fmt(sma50)}，斜率 +${fmt(sma50SlopePct, 2)}%)，20日動能 +${fmt(roc20, 1)}%、EMA8 > EMA21 且 RSI(14)=${fmt(rsi14, 1)}（綜合動能分 ${score}/100），順勢建倉強勢股（停損 $${fmt(stopLoss)}，目標 $${fmt(takeProfit)}）。`,
       reasonEn: `Rising SMA50 ($${fmt(sma50)}, slope +${fmt(sma50SlopePct, 2)}%), 20D ROC +${fmt(roc20, 1)}%, EMA8 > EMA21, RSI=${fmt(rsi14, 1)}. Score ${score}/100.`
     };
   }
 
   return {
     action: 'WAIT',
-    conviction: Math.min(68, score),
+    conviction: Math.min(72, score),
     tagZh: structuralUptrend ? '等待領頭羊訊號' : '空頭結構避開',
     tagEn: structuralUptrend ? 'Awaiting Setup' : 'Below SMA50 Filter',
     reasonZh: structuralUptrend
-      ? `目前動能評分 ${score}/100（RSI=${fmt(rsi14, 1)}, 20日漲跌 ${fmt(roc20, 1)}%），等待更佳切入點。`
+      ? `目前動能評分 ${score}/100（RSI=${fmt(rsi14, 1)}, 20日漲跌 ${fmt(roc20, 1)}%），距離進場門檻 (74分) 僅差 ${Math.max(1, 74 - score)} 分。`
       : `現價 ($${fmt(close)}) 位於 50日均線 ($${fmt(sma50)}) 下方或季線走平下彎，趨勢濾網自動避開弱勢標的。`,
     reasonEn: structuralUptrend
       ? `Score ${score}/100 (RSI=${fmt(rsi14, 1)}); waiting for stronger momentum setup.`
@@ -229,16 +231,16 @@ function evalSigmaReversion(bar, position) {
   } = bar;
 
   const healthyUptrend =
-    close >= sma50 * 0.98 && sma20 >= sma50 * 0.995 && sma50SlopePct >= 0.15 && atrPct <= 3.5;
+    close >= sma50 * 0.98 && sma20 >= sma50 * 0.995 && sma50SlopePct >= 0.15 && atrPct <= 4.1;
 
   if (position) {
     const pnlPct = ((close - position.entryPrice) / position.entryPrice) * 100;
 
     // 1. Reversion to Upper Band / Swing Profit Harvest
     if (
-      (pnlPct >= 6.5 && (bbPercentB >= 0.88 || rsi14 >= 68)) ||
-      pnlPct >= 15.0 ||
-      (position.barsHeld >= 6 && close >= bbUpper * 1.005 && pnlPct >= 4.5)
+      (pnlPct >= 5.5 && (bbPercentB >= 0.85 || rsi14 >= 66)) ||
+      pnlPct >= 14.0 ||
+      (position.barsHeld >= 5 && close >= bbUpper * 1.002 && pnlPct >= 3.8)
     ) {
       return {
         action: 'SELL',
@@ -278,16 +280,16 @@ function evalSigmaReversion(bar, position) {
   if (roc20 >= 0) score += 10;
 
   if (zScore20 <= -0.6 || bbPercentB <= 0.34) score += 28;
-  else if (zScore20 <= 0.1 || bbPercentB <= 0.52) score += 18;
+  else if (zScore20 <= 0.05 || bbPercentB <= 0.5) score += 18;
 
-  if (rsi14 <= 47) score += 18;
+  if (rsi14 <= 48) score += 18;
   else if (rsi14 <= 55 && (rsi14 >= prevRsi14 - 0.5 || dailyReturnPct >= 0)) score += 12;
 
-  if (roc5 <= 0.5) score += 10;
+  if (roc5 <= 0.4) score += 10;
 
   if (healthyUptrend && score >= 70) {
     const stopLoss = close * 0.962;
-    const takeProfit = Math.max(bbUpper * 1.02, close * 1.1);
+    const takeProfit = Math.max(bbUpper * 1.02, close * 1.095);
     return {
       action: 'BUY',
       conviction: Math.min(97, score + Math.round(sma50SlopePct * 4)),
@@ -303,11 +305,11 @@ function evalSigmaReversion(bar, position) {
 
   return {
     action: 'WAIT',
-    conviction: Math.min(64, score),
+    conviction: Math.min(68, score),
     tagZh: healthyUptrend ? '等待拉回買點' : '弱勢結構不接刀',
     tagEn: healthyUptrend ? 'Waiting for Dip' : 'Downtrend Avoided',
     reasonZh: healthyUptrend
-      ? `目前 Z-Score=${fmt(zScore20, 2)}、RSI(14)=${fmt(rsi14, 1)} 處於偏高區，耐心等待拉回支撐再出手。`
+      ? `目前 Z-Score=${fmt(zScore20, 2)}、RSI(14)=${fmt(rsi14, 1)}（抄底準備度 ${score}/70），等待小幅拉回支撐即可觸發買點。`
       : `中長線均線下彎或波動過劇（現價 $${fmt(close)} vs SMA50 $${fmt(sma50)}），嚴守「不接下跌刀」原則空手觀望。`,
     reasonEn: healthyUptrend
       ? `Z-Score=${fmt(zScore20, 2)}, RSI=${fmt(rsi14, 1)}; waiting for a pullback entry.`
@@ -351,7 +353,7 @@ function evalTitanMultiFactor(bar, position, regime) {
   // Factor 3: Low-Volatility Quality (0 - 20)
   let riskScore = 0;
   if (atrPct <= 2.6) riskScore += 14;
-  else if (atrPct <= 3.4) riskScore += 9;
+  else if (atrPct <= 3.8) riskScore += 9;
   if (rsi14 >= 45 && rsi14 <= 68) riskScore += 6;
 
   const compositeScore = trendScore + momScore + riskScore + (regime.spyBullish ? 4 : -4);
@@ -361,15 +363,19 @@ function evalTitanMultiFactor(bar, position, regime) {
     const peakPrice = Math.max(position.highestPrice || position.entryPrice, close);
     const peakGainPct = ((peakPrice - position.entryPrice) / position.entryPrice) * 100;
 
-    // 1. Harvest large institutional compound gain (+36% or trailing profit lock after +15% run)
-    if (pnlPct >= 36.0 || (peakGainPct >= 15.0 && pnlPct <= peakGainPct * 0.62)) {
+    // 1. Harvest institutional compound gain (+32% or +7.2% when Z-Score >= 1.85 / RSI >= 70, or trailing profit lock)
+    if (
+      pnlPct >= 32.0 ||
+      (pnlPct >= 7.2 && (zScore20 >= 1.85 || rsi14 >= 70)) ||
+      (peakGainPct >= 12.0 && pnlPct <= peakGainPct * 0.62)
+    ) {
       return {
         action: 'SELL',
         conviction: 91,
-        tagZh: `機構複利保利出場 (+${fmt(pnlPct, 1)}%)`,
-        tagEn: `Compound Profit Lock (+${fmt(pnlPct, 1)}%)`,
-        reasonZh: `持倉曾達最高 $${fmt(peakPrice)} (+${fmt(peakGainPct, 1)}%)，觸發機構移動保利機制，鎖定 +${fmt(pnlPct)}% 複利戰果。`,
-        reasonEn: `Position reached peak $${fmt(peakPrice)} (+${fmt(peakGainPct, 1)}%); harvesting +${fmt(pnlPct)}% institutional gain.`
+        tagZh: `機構複利達標出場 (+${fmt(pnlPct, 1)}%)`,
+        tagEn: `Compound Target Lock (+${fmt(pnlPct, 1)}%)`,
+        reasonZh: `持倉累積報酬達 +${fmt(pnlPct)}%（波段最高 +${fmt(peakGainPct, 1)}%, Z-Score=${fmt(zScore20, 2)}），觸發機構保利機制，鎖定實質複利戰果。`,
+        reasonEn: `Position gained +${fmt(pnlPct)}% (peak +${fmt(peakGainPct, 1)}%); harvesting institutional gain.`
       };
     }
 
@@ -407,9 +413,9 @@ function evalTitanMultiFactor(bar, position, regime) {
   }
 
   // Entry evaluation: require rising structural trend + high Sharpe momentum + low/moderate ATR
-  if (close > sma50 && sma50SlopePct >= 0.1 && atrPct <= 3.5 && compositeScore >= 72 && zScore20 <= 1.1) {
+  if (close > sma50 && sma50SlopePct >= 0.1 && atrPct <= 3.8 && compositeScore >= 72 && zScore20 <= 1.1) {
     const stopLoss = close * 0.96;
-    const takeProfit = close * 1.36;
+    const takeProfit = close * 1.18;
 
     return {
       action: 'BUY',
@@ -419,7 +425,7 @@ function evalTitanMultiFactor(bar, position, regime) {
       takeProfitPrice: takeProfit,
       tagZh: `多因子核心建倉 (${compositeScore}分)`,
       tagEn: `Multi-Factor Core Buy (${compositeScore}/100)`,
-      reasonZh: `多因子評分達 ${compositeScore}/100（趨勢 ${trendScore}/45、夏普動能 ${momScore}/35、低波品質 ${riskScore}/20），季線斜率 +${fmt(sma50SlopePct, 2)}% 且 ATR 波動率僅 ${fmt(atrPct, 1)}%，建倉 25% 核心部位（停損 $${fmt(stopLoss)}）。`,
+      reasonZh: `多因子評分達 ${compositeScore}/100（趨勢 ${trendScore}/45、夏普動能 ${momScore}/35、低波品質 ${riskScore}/20），季線斜率 +${fmt(sma50SlopePct, 2)}% 且 ATR 波動率 ${fmt(atrPct, 1)}%，建倉 25% 核心部位（停損 $${fmt(stopLoss)}，目標 $${fmt(takeProfit)}）。`,
       reasonEn: `Composite factor score ${compositeScore}/100 (Trend ${trendScore}, Mom ${momScore}, Risk ${riskScore}); entering 25% core position.`
     };
   }
@@ -429,7 +435,7 @@ function evalTitanMultiFactor(bar, position, regime) {
     conviction: Math.max(20, compositeScore),
     tagZh: `因子觀望 (${compositeScore}分)`,
     tagEn: `Factor Neutral (${compositeScore}/100)`,
-    reasonZh: `多因子綜合評分 ${compositeScore}/100 未達機構建倉門檻 (72分)，維持現金部位等待高勝率共振。`,
+    reasonZh: `多因子綜合評分 ${compositeScore}/100（建倉門檻 72 分），維持現金部位等待高勝率共振。`,
     reasonEn: `Composite score ${compositeScore}/100 below 72 threshold; preserving cash.`
   };
 }

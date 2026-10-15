@@ -1192,3 +1192,526 @@ canvas {
   color: var(--accent-cyan);
   font-weight: 600;
 }
+
+
+/* ============================================================================
+   NEW UPGRADE SECTIONS: Watchlist Deck, Daily Briefing, Explicit AI Banner,
+   Top 5 Promising Forecast, Next Entry Watchlist, Daily PnL Calendar Heatmap
+   ============================================================================ */
+
+/* 1. Custom Ticker Watchlist / Portfolio Simulator Deck */
+.watchlist-deck {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(17, 26, 43, 0.9) 0%, rgba(12, 18, 30, 0.95) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.watchlist-deck-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.watchlist-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.watchlist-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.watchlist-count-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(0, 240, 255, 0.14);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: var(--accent-cyan);
+}
+
+.watchlist-presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preset-chip {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(7, 11, 18, 0.85);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-chip:hover {
+  border-color: var(--border-bright);
+  color: var(--text-primary);
+}
+
+.preset-chip.active {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.watchlist-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.watch-ticker-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(6, 9, 17, 0.65);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.watch-ticker-chip.enabled {
+  background: rgba(16, 185, 129, 0.13);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #f8fafc;
+}
+
+.watch-ticker-chip:hover {
+  border-color: var(--accent-cyan);
+}
+
+.watch-check {
+  font-size: 11px;
+  color: var(--bull-green);
+}
+
+/* 2. Executive AI Daily Portfolio Briefing Banner */
+.briefing-banner {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(14, 24, 42, 0.96), rgba(18, 16, 38, 0.94));
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.35);
+}
+
+.briefing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.briefing-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.briefing-live-pill {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, rgba(0, 240, 255, 0.2), rgba(168, 85, 247, 0.25));
+  border: 1px solid rgba(0, 240, 255, 0.45);
+  color: #f8fafc;
+}
+
+.briefing-date {
+  font-size: 12px;
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.briefing-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.briefing-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 1140px) {
+  .briefing-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 680px) {
+  .briefing-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.briefing-item {
+  background: rgba(6, 9, 17, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  padding: 11px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.briefing-item-lbl {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.briefing-item-txt {
+  font-size: 12.5px;
+  color: #e2e8f0;
+  line-height: 1.48;
+}
+
+/* 3. Recent Operations Filter Bar & High-Visibility AI Trader Identity Banner */
+.ops-filters-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.op-ai-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  margin: -4px -4px 2px -4px;
+  border-radius: 7px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.op-week-tag {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(250, 204, 21, 0.16);
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  color: #fde047;
+}
+
+/* 4. Top 5 Most Promising Stocks & Assets Forecast Section */
+.top5-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 13px;
+}
+
+@media (max-width: 1320px) {
+  .top5-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 880px) {
+  .top5-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 580px) {
+  .top5-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.top5-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.top5-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 12px 28px rgba(0, 240, 255, 0.14);
+}
+
+.top5-card.rank-top1 {
+  border-color: rgba(250, 204, 21, 0.55);
+  background: linear-gradient(180deg, rgba(250, 204, 21, 0.06) 0%, var(--bg-panel) 45%);
+}
+
+.top5-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.top5-rank-pill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: rgba(250, 204, 21, 0.16);
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  color: #fde047;
+}
+
+.top5-score-box {
+  text-align: right;
+  font-family: var(--font-mono);
+}
+
+.top5-score-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--bull-green);
+  line-height: 1.1;
+}
+
+.top5-score-lbl {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.top5-ticker-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.top5-ticker {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.top5-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.top5-consensus-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.28);
+  color: var(--accent-cyan);
+}
+
+.top5-price-box {
+  background: rgba(6, 9, 17, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 9px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.top5-catalysts {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11.5px;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.top5-catalysts li {
+  position: relative;
+  padding-left: 13px;
+}
+
+.top5-catalysts li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--accent-cyan);
+}
+
+/* 5. Next Entry Watchlist & Trigger Prices Section */
+.next-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1080px) {
+  .next-entry-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 680px) {
+  .next-entry-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.next-entry-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 11px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.next-entry-card:hover {
+  border-color: var(--border-bright);
+  transform: translateY(-2px);
+}
+
+.readiness-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.readiness-track {
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.readiness-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #38bdf8, #00e676);
+}
+
+/* 6. Daily / Weekly PnL Calendar Heatmap */
+.calendar-summary-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.calendar-heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  gap: 8px;
+}
+
+.cal-day-cell {
+  border-radius: 8px;
+  padding: 9px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  font-family: var(--font-mono);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 82px;
+  transition: transform 0.14s ease;
+}
+
+.cal-day-cell:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-cyan);
+}
+
+.cal-day-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #cbd5e1;
+}
+
+.cal-day-ret {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.cal-day-pnl {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.cal-day-trades {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.cal-trade-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.cal-trade-pill.buy {
+  background: rgba(0, 230, 118, 0.2);
+  color: #00e676;
+  border: 1px solid rgba(0, 230, 118, 0.4);
+}
+
+.cal-trade-pill.sell {
+  background: rgba(255, 59, 92, 0.2);
+  color: #ff3b5c;
+  border: 1px solid rgba(255, 59, 92, 0.4);
+}

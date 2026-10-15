@@ -27,26 +27,38 @@ export function prepareEnrichedUniverse(rawMarketData) {
  *
  * @param {object} rawMarketData Market data snapshot containing `.symbols[ticker].bars`
  * @param {object} options
- * @param {number} [options.periodDays=30] Number of trading days to simulate (e.g. 22 ~ 30 for 1M, 60, 90, 180, 250)
+ * @param {number} [options.periodDays=22] Number of trading days to simulate (22=1M, 44=2M, 63=3M, 126=6M, 251=1Y)
  * @param {number} [options.initialCapital=100000] Starting virtual USD capital per AI trader
  * @param {number} [options.feeRate=0.001] Commission + slippage per trade leg (0.001 = 0.10%)
  * @param {string} [options.marketFilter='all'] 'all' | 'us-stock' | 'crypto'
+ * @param {string[]} [options.enabledSymbols] Optional custom subset of tickers enabled by user
  */
 export function runArenaSimulation(rawMarketData, options = {}) {
-  const periodDays = Number(options.periodDays || 30);
+  const periodDays = Number(options.periodDays || 22);
   const initialCapital = Number(options.initialCapital || 100000);
   const feeRate = Number(options.feeRate ?? 0.001);
   const marketFilter = options.marketFilter || 'all';
+  const enabledSet =
+    Array.isArray(options.enabledSymbols) && options.enabledSymbols.length > 0
+      ? new Set(options.enabledSymbols)
+      : null;
 
   const { enrichedBySymbol, barBySymbolAndDate } = prepareEnrichedUniverse(rawMarketData);
 
   // Determine eligible tradeable symbols
-  const eligibleAssets = ASSET_UNIVERSE.filter((asset) => {
+  let eligibleAssets = ASSET_UNIVERSE.filter((asset) => {
     if (!enrichedBySymbol[asset.symbol] || enrichedBySymbol[asset.symbol].length === 0) {
       return false;
     }
+    if (enabledSet && !enabledSet.has(asset.symbol)) {
+      return false;
+    }
     if (marketFilter === 'us-stock') {
-      return asset.category === 'us-stock' || asset.category === 'us-etf';
+      return (
+        asset.category === 'us-stock' ||
+        asset.category === 'us-etf' ||
+        asset.category === 'commodity'
+      );
     }
     if (marketFilter === 'crypto') {
       return asset.category === 'crypto';
@@ -54,17 +66,26 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     return true;
   });
 
+  if (eligibleAssets.length === 0) {
+    eligibleAssets = ASSET_UNIVERSE.filter(
+      (asset) => enrichedBySymbol[asset.symbol] && enrichedBySymbol[asset.symbol].length > 0
+    );
+  }
+
   // Build master trading date timeline from SPY (for stocks/all) or BTC-USD (for crypto-only)
   const timelineSymbol =
     marketFilter === 'crypto' && enrichedBySymbol['BTC-USD']?.length
       ? 'BTC-USD'
       : enrichedBySymbol[BENCHMARK_SYMBOL]?.length
         ? BENCHMARK_SYMBOL
-        : Object.keys(enrichedBySymbol)[0];
+        : eligibleAssets[0]?.symbol || Object.keys(enrichedBySymbol)[0];
 
   const fullTimeline = (enrichedBySymbol[timelineSymbol] || []).map((b) => b.date);
   const startIdx = Math.max(0, fullTimeline.length - periodDays);
   const timelineDates = fullTimeline.slice(startIdx);
+
+  // Last 5 trading days (~7 calendar days = Past 1 Week)
+  const recentWeekDates = new Set(timelineDates.slice(-5));
 
   // Benchmark series (Buy & Hold SPY or BTC-USD)
   const benchmarkTicker = marketFilter === 'crypto' ? 'BTC-USD' : BENCHMARK_SYMBOL;
@@ -74,7 +95,10 @@ export function runArenaSimulation(rawMarketData, options = {}) {
   const benchmarkCurve = [];
 
   for (const date of timelineDates) {
-    const b = benchmarkDateMap.get(date) || benchmarkBars.find((x) => x.date >= date) || benchmarkBars.at(-1);
+    const b =
+      benchmarkDateMap.get(date) ||
+      benchmarkBars.find((x) => x.date >= date) ||
+      benchmarkBars.at(-1);
     const price = b ? b.close : 100;
     if (firstBenchmarkPrice === null) firstBenchmarkPrice = price;
     const equity = initialCapital * (price / firstBenchmarkPrice);
@@ -94,8 +118,9 @@ export function runArenaSimulation(rawMarketData, options = {}) {
   const traderResults = AI_TRADERS.map((trader) => {
     let cash = initialCapital;
     const openPositions = new Map(); // symbol -> position object
+    const cooldownUntilDayIdx = new Map(); // symbol -> dayIdx cooldown after selling
     const closedTrades = [];
-    const orderEvents = []; // chronological log of every BUY and SELL execution
+    const orderEvents = [];
     const equityCurve = [];
     let peakEquity = initialCapital;
     let maxDrawdownPct = 0;
@@ -158,16 +183,21 @@ export function runArenaSimulation(rawMarketData, options = {}) {
 
           cash += netProceeds;
           openPositions.delete(symbol);
+          // Prevent same-day or next-day whipsaw re-entry on the same ticker
+          cooldownUntilDayIdx.set(symbol, dayIdx + 2);
 
+          const meta = getAssetMeta(symbol);
           const tradeRecord = {
             id: `${trader.id}-${symbol}-${pos.entryDate}-${date}`,
             traderId: trader.id,
             traderName: trader.name,
             traderNameZh: trader.nameZh,
+            traderBadge: trader.badge,
             traderColor: trader.color,
             symbol,
-            assetNameZh: getAssetMeta(symbol).nameZh,
-            category: getAssetMeta(symbol).category,
+            displayTicker: meta.displayTicker || symbol,
+            assetNameZh: meta.nameZh,
+            category: meta.category,
             status: 'CLOSED',
             entryDate: pos.entryDate,
             exitDate: date,
@@ -201,15 +231,17 @@ export function runArenaSimulation(rawMarketData, options = {}) {
             traderBadge: trader.badge,
             traderColor: trader.color,
             date,
+            isWithinPastWeek: recentWeekDates.has(date),
             entryDate: pos.entryDate,
             exitDate: date,
             barsHeld: pos.barsHeld,
             type: 'SELL',
             status: 'CLOSED',
             symbol,
-            assetName: getAssetMeta(symbol).name,
-            assetNameZh: getAssetMeta(symbol).nameZh,
-            assetColor: getAssetMeta(symbol).color,
+            displayTicker: meta.displayTicker || symbol,
+            assetName: meta.name,
+            assetNameZh: meta.nameZh,
+            assetColor: meta.color,
             price: bar.close,
             entryPrice: pos.entryPrice,
             exitPrice: bar.close,
@@ -234,6 +266,9 @@ export function runArenaSimulation(rawMarketData, options = {}) {
         const candidates = [];
         for (const asset of eligibleAssets) {
           if (openPositions.has(asset.symbol)) continue;
+          const cd = cooldownUntilDayIdx.get(asset.symbol);
+          if (cd !== undefined && dayIdx <= cd) continue;
+
           const bar = barBySymbolAndDate[asset.symbol]?.get(date);
           if (!bar) continue;
 
@@ -250,7 +285,6 @@ export function runArenaSimulation(rawMarketData, options = {}) {
         // Rank by highest conviction
         candidates.sort((a, b) => b.decision.conviction - a.decision.conviction);
 
-        // Compute current total equity before sizing new positions
         let currentInvested = 0;
         for (const pos of openPositions.values()) {
           currentInvested += pos.shares * pos.currentPrice;
@@ -269,7 +303,9 @@ export function runArenaSimulation(rawMarketData, options = {}) {
           const shares =
             cand.asset.category === 'crypto'
               ? Math.floor(rawShares * 1000) / 1000
-              : Math.max(1, Math.floor(rawShares));
+              : cand.asset.category === 'commodity'
+                ? Math.floor(rawShares * 10) / 10
+                : Math.max(1, Math.floor(rawShares));
 
           const grossCost = shares * entryPrice;
           const entryFee = grossCost * feeRate;
@@ -280,6 +316,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
           cash -= totalCost;
           openPositions.set(cand.asset.symbol, {
             symbol: cand.asset.symbol,
+            displayTicker: cand.asset.displayTicker || cand.asset.symbol,
             assetNameZh: cand.asset.nameZh,
             category: cand.asset.category,
             entryDate: date,
@@ -290,8 +327,8 @@ export function runArenaSimulation(rawMarketData, options = {}) {
             costBasis: totalCost,
             entryFee,
             barsHeld: 0,
-            stopLoss: cand.decision.stopLossPrice || entryPrice * 0.945,
-            takeProfit: cand.decision.takeProfitPrice || entryPrice * 1.1,
+            stopLoss: cand.decision.stopLossPrice || entryPrice * 0.958,
+            takeProfit: cand.decision.takeProfitPrice || entryPrice * 1.15,
             entryTagZh: cand.decision.tagZh,
             entryTagEn: cand.decision.tagEn,
             entryReasonZh: cand.decision.reasonZh,
@@ -306,10 +343,12 @@ export function runArenaSimulation(rawMarketData, options = {}) {
             traderBadge: trader.badge,
             traderColor: trader.color,
             date,
+            isWithinPastWeek: recentWeekDates.has(date),
             entryDate: date,
             type: 'BUY',
             status: 'OPEN',
             symbol: cand.asset.symbol,
+            displayTicker: cand.asset.displayTicker || cand.asset.symbol,
             assetName: cand.asset.name,
             assetNameZh: cand.asset.nameZh,
             assetColor: cand.asset.color,
@@ -319,8 +358,8 @@ export function runArenaSimulation(rawMarketData, options = {}) {
             shares,
             amount: totalCost,
             fee: entryFee,
-            stopLoss: cand.decision.stopLossPrice || entryPrice * 0.945,
-            takeProfit: cand.decision.takeProfitPrice || entryPrice * 1.1,
+            stopLoss: cand.decision.stopLossPrice || entryPrice * 0.958,
+            takeProfit: cand.decision.takeProfitPrice || entryPrice * 1.15,
             tagZh: cand.decision.tagZh,
             tagEn: cand.decision.tagEn,
             reasonZh: cand.decision.reasonZh,
@@ -341,7 +380,8 @@ export function runArenaSimulation(rawMarketData, options = {}) {
 
       const returnPct = ((totalEquity - initialCapital) / initialCapital) * 100;
       const prevEquity = equityCurve.length > 0 ? equityCurve.at(-1).equity : initialCapital;
-      const dailyReturn = prevEquity > 0 ? (totalEquity - prevEquity) / prevEquity : 0;
+      const dailyPnlDollar = totalEquity - prevEquity;
+      const dailyReturn = prevEquity > 0 ? dailyPnlDollar / prevEquity : 0;
 
       equityCurve.push({
         date,
@@ -351,6 +391,8 @@ export function runArenaSimulation(rawMarketData, options = {}) {
         returnPct,
         drawdownPct,
         dailyReturn,
+        dailyReturnPct: dailyReturn * 100,
+        dailyPnlDollar,
         openPositionsCount: openPositions.size
       });
     }
@@ -420,7 +462,10 @@ export function runArenaSimulation(rawMarketData, options = {}) {
           ev.pnlPct = closedTr.netPnlPct;
         }
       } else if (ev.type === 'SELL') {
-        const rangeSpan = Math.max(0.0001, (ev.takeProfit || ev.price * 1.1) - (ev.stopLoss || ev.price * 0.95));
+        const rangeSpan = Math.max(
+          0.0001,
+          (ev.takeProfit || ev.price * 1.1) - (ev.stopLoss || ev.price * 0.95)
+        );
         ev.rangeProgressPct = Math.max(
           0,
           Math.min(100, ((ev.exitPrice - ev.stopLoss) / rangeSpan) * 100)
@@ -431,6 +476,21 @@ export function runArenaSimulation(rawMarketData, options = {}) {
         );
       }
     }
+
+    // Build Daily PnL Calendar Heatmap array for this AI Trader
+    const eventsByDate = new Map();
+    for (const ev of orderEvents) {
+      if (!eventsByDate.has(ev.date)) eventsByDate.set(ev.date, []);
+      eventsByDate.get(ev.date).push(ev);
+    }
+    const dailyCalendar = equityCurve.map((pt) => ({
+      date: pt.date,
+      equity: pt.equity,
+      returnPct: pt.returnPct,
+      dailyReturnPct: pt.dailyReturnPct,
+      dailyPnlDollar: pt.dailyPnlDollar,
+      trades: eventsByDate.get(pt.date) || []
+    }));
 
     // Compute summary metrics
     const finalPoint = equityCurve.at(-1) || {
@@ -499,6 +559,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
         totalFeesPaid
       },
       equityCurve,
+      dailyCalendar,
       activePositions,
       closedTrades: closedTrades.slice().reverse(),
       orderEvents: orderEvents.slice().reverse()
@@ -510,52 +571,63 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     (a, b) => b.metrics.totalReturnPct - a.metrics.totalReturnPct
   );
 
-  // Build "Today's Live AI Radar" for the latest market bar across all assets
-  const latestRadar = eligibleAssets.map((asset) => {
-    const bars = enrichedBySymbol[asset.symbol] || [];
-    const latestBar = bars.at(-1);
-    if (!latestBar) return null;
+  // Build "Today's Live AI Radar" for the latest market bar across all eligible assets
+  const latestRadar = eligibleAssets
+    .map((asset) => {
+      const bars = enrichedBySymbol[asset.symbol] || [];
+      const latestBar = bars.at(-1);
+      if (!latestBar) return null;
 
-    const spyLatest = enrichedBySymbol[BENCHMARK_SYMBOL]?.at(-1);
-    const regime = {
-      spyBullish: spyLatest ? spyLatest.close >= spyLatest.sma50 * 0.985 : true
-    };
+      const spyLatest = enrichedBySymbol[BENCHMARK_SYMBOL]?.at(-1);
+      const regime = {
+        spyBullish: spyLatest ? spyLatest.close >= spyLatest.sma50 * 0.985 : true,
+        spyShortTermBull: spyLatest
+          ? spyLatest.close >= spyLatest.sma20 * 0.99 || spyLatest.ema8 >= spyLatest.ema21
+          : true
+      };
 
-    const signalsByTrader = {};
-    for (const trResult of traderResults) {
-      const openPos = trResult.activePositions.find((p) => p.symbol === asset.symbol) || null;
-      signalsByTrader[trResult.trader.id] = evaluateTraderSignal(
-        trResult.trader.id,
-        latestBar,
-        openPos,
-        regime
-      );
-    }
+      const signalsByTrader = {};
+      for (const trResult of traderResults) {
+        const openPos = trResult.activePositions.find((p) => p.symbol === asset.symbol) || null;
+        signalsByTrader[trResult.trader.id] = evaluateTraderSignal(
+          trResult.trader.id,
+          latestBar,
+          openPos,
+          regime
+        );
+      }
 
-    return {
-      symbol: asset.symbol,
-      name: asset.name,
-      nameZh: asset.nameZh,
-      category: asset.category,
-      sectorZh: asset.sectorZh,
-      color: asset.color,
-      date: latestBar.date,
-      close: latestBar.close,
-      dailyReturnPct: latestBar.dailyReturnPct,
-      roc5: latestBar.roc5,
-      roc10: latestBar.roc10,
-      rsi14: latestBar.rsi14,
-      macdHist: latestBar.macdHist,
-      bbPercentB: latestBar.bbPercentB,
-      zScore20: latestBar.zScore20,
-      atrPct: latestBar.atrPct,
-      ema8: latestBar.ema8,
-      ema21: latestBar.ema21,
-      sma20: latestBar.sma20,
-      sma50: latestBar.sma50,
-      signalsByTrader
-    };
-  }).filter(Boolean);
+      return {
+        symbol: asset.symbol,
+        displayTicker: asset.displayTicker || asset.symbol,
+        name: asset.name,
+        nameZh: asset.nameZh,
+        category: asset.category,
+        sectorZh: asset.sectorZh,
+        color: asset.color,
+        date: latestBar.date,
+        close: latestBar.close,
+        dailyReturnPct: latestBar.dailyReturnPct,
+        roc5: latestBar.roc5,
+        roc10: latestBar.roc10,
+        roc20: latestBar.roc20,
+        rsi14: latestBar.rsi14,
+        macdHist: latestBar.macdHist,
+        bbUpper: latestBar.bbUpper,
+        bbLower: latestBar.bbLower,
+        bbPercentB: latestBar.bbPercentB,
+        zScore20: latestBar.zScore20,
+        atr14: latestBar.atr14,
+        atrPct: latestBar.atrPct,
+        ema8: latestBar.ema8,
+        ema21: latestBar.ema21,
+        sma20: latestBar.sma20,
+        sma50: latestBar.sma50,
+        sma50SlopePct: latestBar.sma50SlopePct,
+        signalsByTrader
+      };
+    })
+    .filter(Boolean);
 
   // Build unified cross-AI recent operations feed sorted newest date first
   const recentOperations = traderResults
@@ -563,9 +635,28 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     .sort((a, b) => {
       const dateCmp = b.date.localeCompare(a.date);
       if (dateCmp !== 0) return dateCmp;
-      // Put SELL before BUY on same date or sort by PnL %
       return (b.pnlPct || 0) - (a.pnlPct || 0);
     });
+
+  const recentWeekOperations = recentOperations.filter((op) => op.isWithinPastWeek);
+
+  // Build "Top 5 Most Promising Stocks & Assets Forecast" (AI 預測未來最有看頭的前五名股票)
+  const top5Promising = computeTop5PromisingAssets(latestRadar, traderResults);
+
+  // Build "Next Entry Watchlist & Estimated Trigger Prices" (下一檔最接近買點的準進場清單)
+  const nextEntryWatchlist = computeNextEntryWatchlist(latestRadar, traderResults);
+
+  // Build "AI Daily Portfolio Briefing" (AI 每日盤後投顧總結快報)
+  const dailyBriefing = computeDailyBriefing({
+    endDate: timelineDates.at(-1) || '',
+    leaderboard,
+    benchmarkTicker,
+    benchmarkFinalReturnPct,
+    recentWeekOperations,
+    top5Promising,
+    nextEntryWatchlist,
+    latestRadar
+  });
 
   return {
     generatedAt: new Date().toISOString(),
@@ -575,6 +666,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       initialCapital,
       feeRate,
       marketFilter,
+      enabledSymbols: eligibleAssets.map((a) => a.symbol),
       startDate: timelineDates[0] || '',
       endDate: timelineDates.at(-1) || '',
       tradingDaysCount: timelineDates.length
@@ -589,7 +681,297 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     traderResults,
     leaderboard,
     recentOperations,
+    recentWeekOperations,
+    top5Promising,
+    nextEntryWatchlist,
+    dailyBriefing,
     latestRadar
+  };
+}
+
+/**
+ * Computes the Top 5 Most Promising Assets for the Next 30 Days across all eligible assets.
+ */
+function computeTop5PromisingAssets(latestRadar, traderResults) {
+  const candidates = latestRadar.filter((r) => r.category !== 'us-etf');
+  const pool = candidates.length >= 5 ? candidates : latestRadar;
+
+  const scored = pool.map((r) => {
+    // 1. Trend Structure & SMA50 Slope (0 - 34)
+    let trendPts = 0;
+    if (r.close > r.sma50) trendPts += 14;
+    if (r.sma20 >= r.sma50 * 0.995) trendPts += 10;
+    if (r.sma50SlopePct >= 0.3) trendPts += 10;
+    else if (r.sma50SlopePct > 0) trendPts += 6;
+
+    // 2. Relative Strength & Sharpe Momentum (0 - 26)
+    const sharpeMom = r.atrPct > 0 ? r.roc20 / r.atrPct : 0;
+    let momPts = 0;
+    if (sharpeMom >= 1.2) momPts += 16;
+    else if (sharpeMom >= 0.3) momPts += 11;
+    else if (r.roc10 > 0) momPts += 6;
+    if (r.ema8 >= r.ema21 * 0.995) momPts += 10;
+
+    // 3. Valuation / Pullback Upside Room (0 - 22)
+    // Prefer healthy pullback or non-overextended setup (RSI 40~63, Z-Score -1.6 ~ +1.0)
+    let roomPts = 0;
+    if (r.rsi14 >= 40 && r.rsi14 <= 63) roomPts += 12;
+    else if (r.rsi14 < 40 && r.close >= r.sma50 * 0.95) roomPts += 14; // Oversold coiled spring
+    else if (r.rsi14 <= 68) roomPts += 7;
+
+    if (r.zScore20 >= -1.6 && r.zScore20 <= 0.8) roomPts += 10;
+    else if (r.zScore20 <= 1.4) roomPts += 5;
+
+    // 4. 3-AI Consensus & Active Holding Conviction (0 - 18)
+    let aiConsensusPts = 0;
+    const bullishTraders = [];
+    for (const tr of traderResults) {
+      const sig = r.signalsByTrader[tr.trader.id];
+      const isHeld = tr.activePositions.some((p) => p.symbol === r.symbol);
+      if (sig?.action === 'BUY' || sig?.action === 'HOLD' || isHeld) {
+        aiConsensusPts += 6;
+        bullishTraders.push(tr.trader.nameZh.split(' ')[0]);
+      } else if ((sig?.conviction || 0) >= 60) {
+        aiConsensusPts += 3;
+      }
+    }
+
+    const rawScore =
+      trendPts + momPts + roomPts + aiConsensusPts + Math.max(-3, Math.min(4, sharpeMom * 1.2));
+    const outlookScore = Math.min(98, Math.max(40, Math.round(rawScore)));
+
+    // Calculate concrete Buy Zone, 30-Day Target Price, and Stop-Loss Defense Price
+    const buyZoneLow = Math.min(r.close * 0.985, r.sma20 * 0.99);
+    const buyZoneHigh = r.close * 1.005;
+    const projectedUpsidePct = Math.max(8.5, Math.min(22.0, r.atrPct * 3.8 + Math.max(0, -r.zScore20 * 2.5)));
+    const targetPrice30d = r.close * (1 + projectedUpsidePct / 100);
+    const stopLossPrice = Math.min(r.close * 0.958, r.close - 2.2 * r.atr14);
+    const downsideRiskPct = Math.max(2.5, ((r.close - stopLossPrice) / r.close) * 100);
+    const rewardRiskRatio = projectedUpsidePct / downsideRiskPct;
+
+    // Build specific catalyst bullet points
+    const catalystsZh = [];
+    if (r.close > r.sma50 && r.sma50SlopePct > 0) {
+      catalystsZh.push(
+        `中長線多頭排列：股價 ($${r.close.toFixed(2)}) 穩居上揚 50日生命線 ($${r.sma50.toFixed(2)}，斜率 +${r.sma50SlopePct.toFixed(2)}%) 之上`
+      );
+    } else if (r.zScore20 <= -1.0) {
+      catalystsZh.push(
+        `極度超賣反彈契機：Z-Score 達 ${r.zScore20.toFixed(2)}、RSI(14)=${r.rsi14.toFixed(1)}，短線乖離過大具備強勁均值回歸動能`
+      );
+    }
+    if (r.roc20 > 0) {
+      catalystsZh.push(
+        `資金相對強度領先：近 20 日波段動能 +${r.roc20.toFixed(1)}%，夏普動能比優異`
+      );
+    } else {
+      catalystsZh.push(
+        `波段回測支撐位階：目前布林 %B 位於 ${(r.bbPercentB * 100).toFixed(0)}%，下檔風險有限、盈虧比達 ${rewardRiskRatio.toFixed(1)} : 1`
+      );
+    }
+    if (bullishTraders.length > 0) {
+      catalystsZh.push(
+        `AI 操盤手共識加持：獲 ${bullishTraders.join('、')} AI 納入看多／核心持倉名單`
+      );
+    } else {
+      catalystsZh.push(
+        `波動率蓄勢待發：日均 ATR 波動率 ${r.atrPct.toFixed(1)}%，突破 $${r.ema8.toFixed(2)} 將觸發順勢追價訊號`
+      );
+    }
+
+    const consensusLabelZh =
+      bullishTraders.length === 3
+        ? '🔥 三大 AI 全數看多共識'
+        : bullishTraders.length === 2
+          ? `⚡ ${bullishTraders.join(' + ')} 雙 AI 聯合看多`
+          : bullishTraders.length === 1
+            ? `🎯 ${bullishTraders[0]} AI 點名看多`
+            : '🔭 高賠率波段轉折潛力';
+
+    return {
+      symbol: r.symbol,
+      displayTicker: r.displayTicker,
+      name: r.name,
+      nameZh: r.nameZh,
+      sectorZh: r.sectorZh,
+      category: r.category,
+      color: r.color,
+      currentPrice: r.close,
+      dailyReturnPct: r.dailyReturnPct,
+      roc20: r.roc20,
+      rsi14: r.rsi14,
+      zScore20: r.zScore20,
+      sma50: r.sma50,
+      outlookScore,
+      consensusLabelZh,
+      bullishTradersCount: bullishTraders.length,
+      buyZoneLow,
+      buyZoneHigh,
+      targetPrice30d,
+      projectedUpsidePct,
+      stopLossPrice,
+      downsideRiskPct,
+      rewardRiskRatio,
+      catalystsZh
+    };
+  });
+
+  scored.sort((a, b) => b.outlookScore - a.outlookScore);
+
+  return scored.slice(0, 5).map((item, idx) => ({
+    ...item,
+    rank: idx + 1
+  }));
+}
+
+/**
+ * Computes the Next Entry Watchlist & Estimated Buy Trigger Prices for assets currently on standby.
+ */
+function computeNextEntryWatchlist(latestRadar, traderResults) {
+  const watchlist = [];
+
+  for (const r of latestRadar) {
+    // Evaluate each trader that is NOT currently holding this asset
+    for (const tr of traderResults) {
+      const isHeld = tr.activePositions.some((p) => p.symbol === r.symbol);
+      if (isHeld) continue;
+
+      const sig = r.signalsByTrader[tr.trader.id];
+      if (!sig) continue;
+
+      const threshold = tr.trader.id === 'alpha-momentum' ? 74 : tr.trader.id === 'sigma-reversion' ? 70 : 72;
+      const readinessPct =
+        sig.action === 'BUY'
+          ? 100
+          : Math.min(97, Math.round(((sig.conviction || 40) / threshold) * 100));
+
+      // Compute concrete trigger price for this AI strategy
+      let triggerPrice = r.close;
+      let triggerTypeZh = '';
+      let triggerConditionZh = '';
+
+      if (tr.trader.id === 'sigma-reversion') {
+        // Sigma buys pullbacks toward lower/mid Bollinger band
+        const std20 = (r.bbUpper - r.sma20) / 2 || r.close * 0.02;
+        const targetDipPrice = Math.min(r.close * 0.992, Math.max(r.sma50 * 1.002, r.sma20 - 0.6 * std20));
+        triggerPrice = sig.action === 'BUY' ? r.close : targetDipPrice;
+        const diffPct = ((triggerPrice - r.close) / r.close) * 100;
+        triggerTypeZh = sig.action === 'BUY' ? '🟢 已達抄底買點' : '🎯 回測支撐低接價';
+        triggerConditionZh =
+          sig.action === 'BUY'
+            ? `現價 $${r.close.toFixed(2)} 已進入布林支撐超賣區（Z=${r.zScore20.toFixed(2)}），符合逢低買進條件`
+            : `若股價回測至 $${triggerPrice.toFixed(2)}（距現價 ${diffPct.toFixed(1)}%）且守穩 SMA50 ($${r.sma50.toFixed(2)}) 即觸發買進`;
+      } else if (tr.trader.id === 'alpha-momentum') {
+        // Alpha buys momentum breakout above EMA8 / EMA21
+        const targetBreakout = Math.max(r.close * 1.006, r.ema8 * 1.002, r.ema21 * 1.005);
+        triggerPrice = sig.action === 'BUY' ? r.close : targetBreakout;
+        const diffPct = ((triggerPrice - r.close) / r.close) * 100;
+        triggerTypeZh = sig.action === 'BUY' ? '🟢 已達突破買點' : '⚡ 帶量突破追價點';
+        triggerConditionZh =
+          sig.action === 'BUY'
+            ? `現價 $${r.close.toFixed(2)} 已站上均線多頭排列且動能達標，立即可順勢建倉`
+            : `若股價帶量突破 $${triggerPrice.toFixed(2)}（+${Math.abs(diffPct).toFixed(1)}%）站穩 EMA8/21 與 SMA50 即觸發追價買點`;
+      } else {
+        // Titan buys risk-parity multi-factor setup
+        const targetEntry = r.close >= r.sma50 ? r.close * 0.995 : r.sma50 * 1.005;
+        triggerPrice = sig.action === 'BUY' ? r.close : targetEntry;
+        const diffPct = ((triggerPrice - r.close) / r.close) * 100;
+        triggerTypeZh = sig.action === 'BUY' ? '🟢 已達建倉門檻' : '🛡️ 因子共振建倉價';
+        triggerConditionZh =
+          sig.action === 'BUY'
+            ? `多因子評分已跨越 72 分門檻，符合 25% 機構核心倉位建倉條件`
+            : `站穩 $${triggerPrice.toFixed(2)}（距現價 ${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%）且季線斜率轉強時觸發核心建倉`;
+      }
+
+      watchlist.push({
+        symbol: r.symbol,
+        displayTicker: r.displayTicker,
+        nameZh: r.nameZh,
+        color: r.color,
+        currentPrice: r.close,
+        dailyReturnPct: r.dailyReturnPct,
+        rsi14: r.rsi14,
+        zScore20: r.zScore20,
+        sma50: r.sma50,
+        traderId: tr.trader.id,
+        traderNameZh: tr.trader.nameZh,
+        traderBadge: tr.trader.badge,
+        traderColor: tr.trader.color,
+        action: sig.action,
+        conviction: sig.conviction,
+        threshold,
+        readinessPct,
+        triggerPrice,
+        triggerDiffPct: ((triggerPrice - r.close) / r.close) * 100,
+        triggerTypeZh,
+        triggerConditionZh,
+        plannedStopLoss: triggerPrice * 0.96,
+        plannedTakeProfit: triggerPrice * 1.14
+      });
+    }
+  }
+
+  // Sort by highest readinessPct, deduplicating so each symbol shows its best AI match first
+  watchlist.sort((a, b) => b.readinessPct - a.readinessPct || b.conviction - a.conviction);
+
+  const seenSymbols = new Set();
+  const topUnique = [];
+  for (const item of watchlist) {
+    if (seenSymbols.has(item.symbol)) continue;
+    seenSymbols.add(item.symbol);
+    topUnique.push(item);
+    if (topUnique.length >= 6) break;
+  }
+
+  return topUnique;
+}
+
+/**
+ * Generates the Executive AI Daily Portfolio Briefing.
+ */
+function computeDailyBriefing({
+  endDate,
+  leaderboard,
+  benchmarkTicker,
+  benchmarkFinalReturnPct,
+  recentWeekOperations,
+  top5Promising,
+  nextEntryWatchlist,
+  latestRadar
+}) {
+  const champ = leaderboard[0];
+  const spyItem = latestRadar.find((r) => r.symbol === 'SPY') || latestRadar[0];
+  const goldItem = latestRadar.find((r) => r.symbol === 'XAUUSD');
+
+  const buyOpsWeek = recentWeekOperations.filter((o) => o.type === 'BUY');
+  const sellOpsWeek = recentWeekOperations.filter((o) => o.type === 'SELL');
+
+  const weekSummaryText =
+    recentWeekOperations.length > 0
+      ? `近一週內 3 位 AI 共執行 ${recentWeekOperations.length} 筆操作（${buyOpsWeek.length} 筆買進、${sellOpsWeek.length} 筆賣出）：最新動作包括 ${recentWeekOperations
+          .slice(0, 3)
+          .map(
+            (o) =>
+              `【${o.traderNameZh.split(' ')[0]} AI】${o.type === 'BUY' ? '買進' : '賣出'} ${o.symbol} ($${o.price.toFixed(2)})`
+          )
+          .join('、')}。`
+      : `近一週市場處於高檔震盪，3 位 AI 嚴格執行風控續抱核心部位。`;
+
+  const topPick = top5Promising[0];
+  const nextTrigger = nextEntryWatchlist[0];
+
+  return {
+    date: endDate,
+    marketClimateZh: spyItem
+      ? `大盤基準 ${benchmarkTicker} 最新收在 $${spyItem.close.toFixed(2)}（區間報酬 ${benchmarkFinalReturnPct >= 0 ? '+' : ''}${benchmarkFinalReturnPct.toFixed(2)}%${goldItem ? `，黃金 XAUUSD 報 $${goldItem.close.toFixed(1)}` : ''}）。目前領先冠軍為【${champ.trader.nameZh}】，累積報酬率達 ${champ.metrics.totalReturnPct >= 0 ? '+' : ''}${champ.metrics.totalReturnPct.toFixed(2)}%（期末資產 $${champ.metrics.finalEquity.toLocaleString('en-US', { maximumFractionDigits: 0 })}）。`
+      : '',
+    weeklyActionSummaryZh: weekSummaryText,
+    topForecastZh: topPick
+      ? `未來 30 天頭號看多首選為【${topPick.displayTicker} ${topPick.nameZh}】（AI 綜合看多指數 ${topPick.outlookScore}/100，目標價 $${topPick.targetPrice30d.toFixed(2)}，潛在空間 +${topPick.projectedUpsidePct.toFixed(1)}%）。`
+      : '',
+    nextTriggerZh: nextTrigger
+      ? `下一檔最接近買點的準進場標的為【${nextTrigger.displayTicker}】（由 ${nextTrigger.traderNameZh} 監控，準備度 ${nextTrigger.readinessPct}%，預計觸發價 $${nextTrigger.triggerPrice.toFixed(2)}）。`
+      : ''
   };
 }
 
@@ -599,7 +981,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
  */
 export function runSingleAssetSimulation(rawMarketData, symbol, traderId, periodDays = 60) {
   const symbolData = rawMarketData.symbols?.[symbol];
-  if (!symbolData || !symbolData.bars || symbolData.bars.length === 0) {
+  if (!symbolData || !symbolData.bars || !symbolData.bars.length) {
     return null;
   }
 
@@ -611,6 +993,7 @@ export function runSingleAssetSimulation(rawMarketData, symbol, traderId, period
   const spyMap = new Map(spyBars.map((b) => [b.date, b]));
 
   let position = null;
+  let cooldownUntil = -1;
   const markers = [];
   const roundTrips = [];
 
@@ -618,7 +1001,10 @@ export function runSingleAssetSimulation(rawMarketData, symbol, traderId, period
     const bar = windowBars[i];
     const spyBar = spyMap.get(bar.date);
     const regime = {
-      spyBullish: spyBar ? spyBar.close >= spyBar.sma50 * 0.985 : true
+      spyBullish: spyBar ? spyBar.close >= spyBar.sma50 * 0.985 : true,
+      spyShortTermBull: spyBar
+        ? spyBar.close >= spyBar.sma20 * 0.99 || spyBar.ema8 >= spyBar.ema21
+        : true
     };
 
     if (position) {
@@ -628,15 +1014,15 @@ export function runSingleAssetSimulation(rawMarketData, symbol, traderId, period
 
     const decision = evaluateTraderSignal(traderId, bar, position, regime);
 
-    if (!position && decision.action === 'BUY') {
+    if (!position && i > cooldownUntil && decision.action === 'BUY') {
       position = {
         entryIndex: i,
         entryDate: bar.date,
         entryPrice: bar.close,
         highestPrice: bar.high || bar.close,
         barsHeld: 0,
-        stopLoss: decision.stopLossPrice || bar.close * 0.945,
-        takeProfit: decision.takeProfitPrice || bar.close * 1.1,
+        stopLoss: decision.stopLossPrice || bar.close * 0.958,
+        takeProfit: decision.takeProfitPrice || bar.close * 1.15,
         entryTagZh: decision.tagZh,
         entryTagEn: decision.tagEn,
         entryReasonZh: decision.reasonZh,
@@ -683,10 +1069,10 @@ export function runSingleAssetSimulation(rawMarketData, symbol, traderId, period
         exitReasonZh: decision.reasonZh
       });
       position = null;
+      cooldownUntil = i + 2;
     }
   }
 
-  // If still holding at the end of window, add active hold info
   let openPositionSummary = null;
   if (position && windowBars.length > 0) {
     const lastBar = windowBars.at(-1);
