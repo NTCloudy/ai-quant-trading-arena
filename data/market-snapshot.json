@@ -1,36 +1,18 @@
 {
   "source": "Yahoo Finance Real-Time & Historical OHLCV Feed",
-  "fetchedAt": "2026-10-23T23:53:57.997Z",
+  "fetchedAt": "2026-10-26T19:03:43.900Z",
   "assetsCount": 24,
   "symbols": {
     "NVDA": {
       "symbol": "NVDA",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 210.96,
-      "previousClose": 139.56,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 216.17,
+      "previousClose": 141.54,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 140.82,
-          "high": 141.35,
-          "low": 138.46,
-          "close": 140.41,
-          "volume": 172354900
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 140.93,
-          "high": 144.13,
-          "low": 140.8,
-          "close": 141.54,
-          "volume": 205122100
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -4516,11 +4498,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 210.94,
+          "open": 210.99,
           "high": 213.85,
           "low": 210.18,
           "close": 210.96,
-          "volume": 79740563
+          "volume": 79987200
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 213.12,
+          "high": 217.75,
+          "low": 212.61,
+          "close": 216.17,
+          "volume": 61294696
         }
       ]
     },
@@ -4528,30 +4519,12 @@
       "symbol": "AMD",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 516.79,
-      "previousClose": 152.91,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 531.48,
+      "previousClose": 156.23,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 154.74,
-          "high": 155.19,
-          "low": 152.35,
-          "close": 153.44,
-          "volume": 22877000
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 155.4,
-          "high": 158.91,
-          "low": 155.05,
-          "close": 156.23,
-          "volume": 29758500
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -9037,11 +9010,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 510.15,
+          "open": 510.21,
           "high": 523.92,
-          "low": 508.3571,
+          "low": 508.36,
           "close": 516.79,
-          "volume": 15094156
+          "volume": 15135900
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 522.75,
+          "high": 533.5,
+          "low": 514.012,
+          "close": 531.48,
+          "volume": 11388379
         }
       ]
     },
@@ -9049,30 +9031,12 @@
       "symbol": "MU",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 877.55,
-      "previousClose": 105.05,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 910.32,
+      "previousClose": 107.91,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 106.78,
-          "high": 107.53,
-          "low": 105.55,
-          "close": 106.85,
-          "volume": 13206300
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 108.34,
-          "high": 109.88,
-          "low": 107.72,
-          "close": 107.91,
-          "volume": 12265000
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -13558,11 +13522,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 862.185,
+          "open": 862.29,
           "high": 891.89,
           "low": 858.34,
           "close": 877.55,
-          "volume": 21123737
+          "volume": 21166800
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 889.875,
+          "high": 915.75,
+          "low": 882.77,
+          "close": 910.32,
+          "volume": 17821571
         }
       ]
     },
@@ -13570,30 +13543,12 @@
       "symbol": "TSLA",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 372.22,
-      "previousClose": 213.65,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 394.46,
+      "previousClose": 269.19,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 244.68,
-          "high": 262.12,
-          "low": 242.65,
-          "close": 260.48,
-          "volume": 204491900
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 256.01,
-          "high": 269.49,
-          "low": 255.32,
-          "close": 269.19,
-          "volume": 161611900
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -18079,11 +18034,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 373.135,
-          "high": 377.3,
+          "open": 373.2,
+          "high": 377.32,
           "low": 365.27,
           "close": 372.22,
-          "volume": 34615357
+          "volume": 34689700
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 383.9725,
+          "high": 397.27,
+          "low": 383.8406,
+          "close": 394.46,
+          "volume": 41144890
         }
       ]
     },
@@ -18091,30 +18055,12 @@
       "symbol": "AAPL",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 347.725,
-      "previousClose": 230.76,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 342.92,
+      "previousClose": 231.41,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 229.98,
-          "high": 230.82,
-          "low": 228.41,
-          "close": 230.57,
-          "volume": 31109500
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 229.74,
-          "high": 233.22,
-          "low": 229.57,
-          "close": 231.41,
-          "volume": 38802300
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -22600,11 +22546,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 349.11,
+          "open": 349.12,
           "high": 351.73,
           "low": 345.75,
-          "close": 347.725,
-          "volume": 39450857
+          "close": 347.73,
+          "volume": 39496500
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 343.9,
+          "high": 347.09,
+          "low": 341.03,
+          "close": 342.92,
+          "volume": 20968919
         }
       ]
     },
@@ -22612,30 +22567,12 @@
       "symbol": "MSFT",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 524.51,
-      "previousClose": 424.6,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 531.63,
+      "previousClose": 428.15,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 425.33,
-          "high": 425.98,
-          "low": 422.4,
-          "close": 424.73,
-          "volume": 13581600
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 426.76,
-          "high": 432.52,
-          "low": 426.57,
-          "close": 428.15,
-          "volume": 16899100
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -27121,11 +27058,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 517.995,
+          "open": 517.75,
           "high": 525.77,
           "low": 515.7,
           "close": 524.51,
-          "volume": 13629072
+          "volume": 13671500
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 527.41,
+          "high": 532.92,
+          "low": 521.69,
+          "close": 531.63,
+          "volume": 9889386
         }
       ]
     },
@@ -27133,30 +27079,12 @@
       "symbol": "META",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 642.62,
-      "previousClose": 563.69,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 633.07,
+      "previousClose": 573.25,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 567.13,
-          "high": 568.88,
-          "low": 561.52,
-          "close": 567.78,
-          "volume": 7184700
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 573.93,
-          "high": 581.29,
-          "low": 571.72,
-          "close": 573.25,
-          "volume": 11337900
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -31642,11 +31570,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 638.12,
+          "open": 638.18,
           "high": 648.04,
           "low": 633.27,
           "close": 642.62,
-          "volume": 14729073
+          "volume": 14761500
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 637.8875,
+          "high": 647.69,
+          "low": 629.02,
+          "close": 633.07,
+          "volume": 16217298
         }
       ]
     },
@@ -31654,30 +31591,12 @@
       "symbol": "AMZN",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 248,
-      "previousClose": 184.71,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 248.17,
+      "previousClose": 187.83,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 185.25,
-          "high": 187.11,
-          "low": 183.86,
-          "close": 186.38,
-          "volume": 21647400
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 187.85,
-          "high": 190.45,
-          "low": 187.53,
-          "close": 187.83,
-          "volume": 29362100
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -36163,11 +36082,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 248.549,
+          "open": 248.85,
           "high": 250.01,
-          "low": 246.4516,
+          "low": 246.45,
           "close": 248,
-          "volume": 25470108
+          "volume": 25518200
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 249.42,
+          "high": 250.79,
+          "low": 247.24,
+          "close": 248.17,
+          "volume": 21101533
         }
       ]
     },
@@ -36175,30 +36103,12 @@
       "symbol": "GOOGL",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 320.21,
-      "previousClose": 162.78,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 316.925,
+      "previousClose": 165.27,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 162.83,
-          "high": 163.33,
-          "low": 161.01,
-          "close": 162.72,
-          "volume": 22412500
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 163.67,
-          "high": 165.59,
-          "low": 163.42,
-          "close": 165.27,
-          "volume": 19828900
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -40684,11 +40594,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 320.875,
-          "high": 324.5307,
-          "low": 320.1805,
+          "open": 321.15,
+          "high": 324.53,
+          "low": 320.18,
           "close": 320.21,
-          "volume": 17506463
+          "volume": 17535800
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 320.89,
+          "high": 321.48,
+          "low": 316.6,
+          "close": 316.925,
+          "volume": 14729256
         }
       ]
     },
@@ -40696,30 +40615,12 @@
       "symbol": "QQQ",
       "currency": "USD",
       "exchangeName": "NGM",
-      "regularMarketPrice": 704.4,
-      "previousClose": 488.36,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 712.706,
+      "previousClose": 495.32,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 492.11,
-          "high": 493,
-          "low": 489.44,
-          "close": 492.32,
-          "volume": 22024900
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 495.14,
-          "high": 500.28,
-          "low": 494.43,
-          "close": 495.32,
-          "volume": 38762100
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -45205,11 +45106,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 702.102,
+          "open": 702.2,
           "high": 709.3,
           "low": 701.16,
           "close": 704.4,
-          "volume": 29960981
+          "volume": 30138000
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 707.06,
+          "high": 715.25,
+          "low": 705.58,
+          "close": 712.7064,
+          "volume": 24677767
         }
       ]
     },
@@ -45217,30 +45127,12 @@
       "symbol": "SPY",
       "currency": "USD",
       "exchangeName": "PCX",
-      "regularMarketPrice": 759.97,
-      "previousClose": 577.99,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 764.95,
+      "previousClose": 579.04,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 579.98,
-          "high": 580.06,
-          "low": 576.57,
-          "close": 579.24,
-          "volume": 34979900
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 581.51,
-          "high": 584.46,
-          "low": 578.08,
-          "close": 579.04,
-          "volume": 47268200
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -49726,11 +49618,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 759.896,
+          "open": 759.9,
           "high": 763.47,
           "low": 758.68,
           "close": 759.97,
-          "volume": 33133505
+          "volume": 33377700
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 762.25,
+          "high": 767.73,
+          "low": 761.64,
+          "close": 764.95,
+          "volume": 18407777
         }
       ]
     },
@@ -49738,39 +49639,12 @@
       "symbol": "XAUUSD",
       "currency": "USD",
       "exchangeName": "CMX",
-      "regularMarketPrice": 4010,
-      "previousClose": 2729.4,
-      "barsCount": 504,
-      "firstDate": "2024-10-23",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 4027.5,
+      "previousClose": 2754.6,
+      "barsCount": 502,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-23",
-          "timestamp": 1729656000,
-          "open": 2762.6001,
-          "high": 2772.6001,
-          "low": 2722.1001,
-          "close": 2729.3999,
-          "volume": 214515
-        },
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729742400,
-          "open": 2729.2,
-          "high": 2756.3,
-          "low": 2728.7,
-          "close": 2748.8999,
-          "volume": 175872
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729828800,
-          "open": 2748.6001,
-          "high": 2760.8999,
-          "low": 2729.1001,
-          "close": 2754.6001,
-          "volume": 153487
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730088000,
@@ -54107,7 +53981,7 @@
           "high": 4315.6001,
           "low": 4143.1001,
           "close": 4168.3999,
-          "volume": 140092
+          "volume": 229031
         },
         {
           "date": "2026-09-29",
@@ -54269,16 +54143,25 @@
           "high": 4164.2998,
           "low": 4036.8,
           "close": 4060.3999,
-          "volume": 149523
+          "volume": 214607
         },
         {
           "date": "2026-10-23",
           "timestamp": 1792728000,
           "open": 4042.2,
           "high": 4050.2,
-          "low": 3989.2,
-          "close": 4010,
-          "volume": 173280
+          "low": 3989.1001,
+          "close": 4007.8999,
+          "volume": 214607
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1792987200,
+          "open": 4012.2,
+          "high": 4043.8999,
+          "low": 3990.8999,
+          "close": 4027.5,
+          "volume": 112393
         }
       ]
     },
@@ -54286,39 +54169,12 @@
       "symbol": "BTC-USD",
       "currency": "USD",
       "exchangeName": "CCC",
-      "regularMarketPrice": 81075.16,
-      "previousClose": 66432.195,
+      "regularMarketPrice": 79905.91,
+      "previousClose": 67014.695,
       "barsCount": 731,
-      "firstDate": "2024-10-23",
-      "lastDate": "2026-10-23",
+      "firstDate": "2024-10-26",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-23",
-          "timestamp": 1729641600,
-          "open": 67362.375,
-          "high": 67402.7422,
-          "low": 65188.0352,
-          "close": 66432.1953,
-          "volume": 32263980353
-        },
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729728000,
-          "open": 66653.7031,
-          "high": 68798.9609,
-          "low": 66454.1016,
-          "close": 68161.0547,
-          "volume": 31414428647
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729814400,
-          "open": 68165.2969,
-          "high": 68722.1563,
-          "low": 65521.793,
-          "close": 66642.4141,
-          "volume": 41469984306
-        },
         {
           "date": "2024-10-26",
           "timestamp": 1729900800,
@@ -60865,11 +60721,38 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792713600,
-          "open": 81316.2031,
-          "high": 81914.8203,
-          "low": 80560.0156,
-          "close": 81075.1563,
-          "volume": 23325986816
+          "open": 81311.8906,
+          "high": 81956.3438,
+          "low": 80421.7422,
+          "close": 81074.1875,
+          "volume": 23489312165
+        },
+        {
+          "date": "2026-10-24",
+          "timestamp": 1792800000,
+          "open": 81074.1875,
+          "high": 81098.2422,
+          "low": 79145.5391,
+          "close": 80790.8359,
+          "volume": 21271255914
+        },
+        {
+          "date": "2026-10-25",
+          "timestamp": 1792886400,
+          "open": 80790.8359,
+          "high": 80928.2656,
+          "low": 79766.8281,
+          "close": 80024.0078,
+          "volume": 12096386141
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1792972800,
+          "open": 80039.6875,
+          "high": 80612.2422,
+          "low": 79343.6563,
+          "close": 79905.9063,
+          "volume": 27387404288
         }
       ]
     },
@@ -60877,39 +60760,12 @@
       "symbol": "ETH-USD",
       "currency": "USD",
       "exchangeName": "CCC",
-      "regularMarketPrice": 2384.25,
-      "previousClose": 2509.0989,
+      "regularMarketPrice": 2313.4,
+      "previousClose": 2479.6033,
       "barsCount": 731,
-      "firstDate": "2024-10-23",
-      "lastDate": "2026-10-23",
+      "firstDate": "2024-10-26",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-23",
-          "timestamp": 1729641600,
-          "open": 2620.0886,
-          "high": 2624.4504,
-          "low": 2457.1699,
-          "close": 2509.0989,
-          "volume": 17876984551
-        },
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729728000,
-          "open": 2523.6069,
-          "high": 2559.1514,
-          "low": 2506.7229,
-          "close": 2534.4985,
-          "volume": 16128627601
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729814400,
-          "open": 2534.4548,
-          "high": 2563.7341,
-          "low": 2381.4507,
-          "close": 2435.9341,
-          "volume": 22560233078
-        },
         {
           "date": "2024-10-26",
           "timestamp": 1729900800,
@@ -67456,11 +67312,38 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792713600,
-          "open": 2386.2876,
-          "high": 2412.9229,
-          "low": 2358.1968,
-          "close": 2384.25,
-          "volume": 9810529280
+          "open": 2386.1892,
+          "high": 2414.1357,
+          "low": 2350.835,
+          "close": 2384.0774,
+          "volume": 9908915515
+        },
+        {
+          "date": "2026-10-24",
+          "timestamp": 1792800000,
+          "open": 2384.0774,
+          "high": 2386.8833,
+          "low": 2280.5522,
+          "close": 2355.9536,
+          "volume": 9156769103
+        },
+        {
+          "date": "2026-10-25",
+          "timestamp": 1792886400,
+          "open": 2355.9536,
+          "high": 2367.9153,
+          "low": 2312.3123,
+          "close": 2326.9202,
+          "volume": 6091940277
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1792972800,
+          "open": 2327.1323,
+          "high": 2335.7632,
+          "low": 2294.3359,
+          "close": 2313.3999,
+          "volume": 10294421504
         }
       ]
     },
@@ -67468,30 +67351,12 @@
       "symbol": "PLTR",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 196.75,
-      "previousClose": 42.59,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 199.075,
+      "previousClose": 44.86,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 42.89,
-          "high": 43.73,
-          "low": 42.66,
-          "close": 43.56,
-          "volume": 34079600
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 43.85,
-          "high": 45.07,
-          "low": 43.645,
-          "close": 44.86,
-          "volume": 50416500
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -71979,9 +71844,18 @@
           "timestamp": 1792762200,
           "open": 195.02,
           "high": 197.49,
-          "low": 190.5702,
+          "low": 190.57,
           "close": 196.75,
-          "volume": 16072134
+          "volume": 17614200
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 198.1,
+          "high": 200,
+          "low": 192.91,
+          "close": 199.075,
+          "volume": 10835881
         }
       ]
     },
@@ -71989,30 +71863,12 @@
       "symbol": "TSM",
       "currency": "USD",
       "exchangeName": "NYQ",
-      "regularMarketPrice": 418.51,
-      "previousClose": 200.86,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 427.855,
+      "previousClose": 203.44,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 198.96,
-          "high": 200.5,
-          "low": 197.41,
-          "close": 197.93,
-          "volume": 9935800
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 200.25,
-          "high": 205.2,
-          "low": 200,
-          "close": 203.44,
-          "volume": 13434900
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -76499,10 +76355,19 @@
           "date": "2026-10-23",
           "timestamp": 1792762200,
           "open": 412.29,
-          "high": 421.3082,
-          "low": 411.155,
+          "high": 421.31,
+          "low": 411.11,
           "close": 418.51,
-          "volume": 9451901
+          "volume": 9478300
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 418.07,
+          "high": 428.85,
+          "low": 417.72,
+          "close": 427.855,
+          "volume": 6291981
         }
       ]
     },
@@ -76510,30 +76375,12 @@
       "symbol": "AVGO",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 321.68,
-      "previousClose": 173.51,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 330.25,
+      "previousClose": 173,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 174.26,
-          "high": 174.3,
-          "low": 169.5,
-          "close": 171.35,
-          "volume": 20485200
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 174.19,
-          "high": 176.8,
-          "low": 172.72,
-          "close": 173,
-          "volume": 19977700
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -81019,11 +80866,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 321.25,
+          "open": 321.5,
           "high": 327.7,
           "low": 320.23,
           "close": 321.68,
-          "volume": 15826189
+          "volume": 15871100
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 324.45,
+          "high": 332.12,
+          "low": 323.3,
+          "close": 330.25,
+          "volume": 10492090
         }
       ]
     },
@@ -81031,30 +80887,12 @@
       "symbol": "CRWD",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 257.57,
-      "previousClose": 74.825,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 261.84,
+      "previousClose": 75.155,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 75.5275,
-          "high": 76.4768,
-          "low": 75.25,
-          "close": 76.1175,
-          "volume": 7923600
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 76.305,
-          "high": 77.8375,
-          "low": 73.7825,
-          "close": 75.155,
-          "volume": 24183200
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -85540,11 +85378,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 238.5,
+          "open": 239.29,
           "high": 257.91,
-          "low": 234.7875,
+          "low": 234.788,
           "close": 257.57,
-          "volume": 13342948
+          "volume": 13367500
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 258.53,
+          "high": 264.39,
+          "low": 254.06,
+          "close": 261.84,
+          "volume": 5873053
         }
       ]
     },
@@ -85552,30 +85399,12 @@
       "symbol": "ARM",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 210.33,
-      "previousClose": 142.41,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 224.675,
+      "previousClose": 143.75,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 143.3,
-          "high": 143.59,
-          "low": 138.4,
-          "close": 141.04,
-          "volume": 5630300
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 142,
-          "high": 145.56,
-          "low": 141.5,
-          "close": 143.75,
-          "volume": 4425000
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -90061,11 +89890,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 209.925,
+          "open": 210.67,
           "high": 215.05,
           "low": 208.5,
           "close": 210.33,
-          "volume": 2426422
+          "volume": 2430100
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 211.58,
+          "high": 224.9,
+          "low": 210.85,
+          "close": 224.675,
+          "volume": 3179628
         }
       ]
     },
@@ -90073,30 +89911,12 @@
       "symbol": "VST",
       "currency": "USD",
       "exchangeName": "NYQ",
-      "regularMarketPrice": 140.16,
-      "previousClose": 126.11,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 142.02,
+      "previousClose": 124.03,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 125.91,
-          "high": 127.113,
-          "low": 123.3,
-          "close": 125.58,
-          "volume": 3317400
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 127.35,
-          "high": 128.35,
-          "low": 123.1,
-          "close": 124.03,
-          "volume": 3792500
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -94583,10 +94403,19 @@
           "date": "2026-10-23",
           "timestamp": 1792762200,
           "open": 139.06,
-          "high": 141.5,
-          "low": 136.177,
+          "high": 141.525,
+          "low": 136.17,
           "close": 140.16,
-          "volume": 6723877
+          "volume": 6729900
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 140.9,
+          "high": 143.5198,
+          "low": 139.07,
+          "close": 142.0201,
+          "volume": 3049520
         }
       ]
     },
@@ -94594,30 +94423,12 @@
       "symbol": "APP",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 260.25,
-      "previousClose": 159.4,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 259.295,
+      "previousClose": 161.63,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 160.56,
-          "high": 162.72,
-          "low": 158.08,
-          "close": 159,
-          "volume": 2489100
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 161.46,
-          "high": 164.15,
-          "low": 159.91,
-          "close": 161.63,
-          "volume": 2193300
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -99103,11 +98914,20 @@
         {
           "date": "2026-10-23",
           "timestamp": 1792762200,
-          "open": 262.442,
+          "open": 263.035,
           "high": 264,
-          "low": 258.3201,
+          "low": 258.32,
           "close": 260.25,
-          "volume": 2344713
+          "volume": 2348400
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 261.1,
+          "high": 262.9312,
+          "low": 255.46,
+          "close": 259.295,
+          "volume": 1457394
         }
       ]
     },
@@ -99115,30 +98935,12 @@
       "symbol": "NFLX",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 65.85,
-      "previousClose": 74.929,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 63.335,
+      "previousClose": 75.468,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 75.197,
-          "high": 75.582,
-          "low": 74.625,
-          "close": 75.455,
-          "volume": 26430000
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 75.617,
-          "high": 76.85,
-          "low": 75.353,
-          "close": 75.468,
-          "volume": 28195000
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -103628,7 +103430,16 @@
           "high": 67.82,
           "low": 65.78,
           "close": 65.85,
-          "volume": 35672753
+          "volume": 37815400
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 65.16,
+          "high": 65.49,
+          "low": 62.865,
+          "close": 63.335,
+          "volume": 39506060
         }
       ]
     },
@@ -103636,30 +103447,12 @@
       "symbol": "NET",
       "currency": "USD",
       "exchangeName": "NYQ",
-      "regularMarketPrice": 325.73,
-      "previousClose": 87.64,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 330.36,
+      "previousClose": 88.76,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 88.2,
-          "high": 90.11,
-          "low": 88,
-          "close": 89.57,
-          "volume": 1768500
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 89.82,
-          "high": 90.65,
-          "low": 88.47,
-          "close": 88.76,
-          "volume": 1437300
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -108146,10 +107939,19 @@
           "date": "2026-10-23",
           "timestamp": 1792762200,
           "open": 306.7,
-          "high": 327.99,
+          "high": 328,
           "low": 299.27,
           "close": 325.73,
-          "volume": 4166087
+          "volume": 4169100
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 327.94,
+          "high": 333.15,
+          "low": 315.12,
+          "close": 330.36,
+          "volume": 1971958
         }
       ]
     },
@@ -108157,30 +107959,12 @@
       "symbol": "COIN",
       "currency": "USD",
       "exchangeName": "NMS",
-      "regularMarketPrice": 164.45,
-      "previousClose": 198.93,
-      "barsCount": 501,
-      "firstDate": "2024-10-24",
-      "lastDate": "2026-10-23",
+      "regularMarketPrice": 160.03,
+      "previousClose": 205.04,
+      "barsCount": 500,
+      "firstDate": "2024-10-28",
+      "lastDate": "2026-10-26",
       "bars": [
-        {
-          "date": "2024-10-24",
-          "timestamp": 1729776600,
-          "open": 206.87,
-          "high": 210.55,
-          "low": 200.8,
-          "close": 209.16,
-          "volume": 9925400
-        },
-        {
-          "date": "2024-10-25",
-          "timestamp": 1729863000,
-          "open": 208.3,
-          "high": 213.67,
-          "low": 203.4,
-          "close": 205.04,
-          "volume": 9261300
-        },
         {
           "date": "2024-10-28",
           "timestamp": 1730122200,
@@ -112670,7 +112454,16 @@
           "high": 169.84,
           "low": 163.33,
           "close": 164.45,
-          "volume": 6530317
+          "volume": 6546100
+        },
+        {
+          "date": "2026-10-26",
+          "timestamp": 1793021400,
+          "open": 159.635,
+          "high": 162.47,
+          "low": 155.31,
+          "close": 160.03,
+          "volume": 4066642
         }
       ]
     }
