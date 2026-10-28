@@ -1,5 +1,49 @@
 [
   {
+    "syncedAt": "2026-10-28T00:36:01.490Z",
+    "marketDate": "2026-10-26",
+    "trigger": "schedule",
+    "runNumber": 16,
+    "spyClose": 769.66,
+    "btcClose": 80674.05,
+    "nvdaClose": 217.94,
+    "benchmark1MReturnPct": -0.78,
+    "leader1M": {
+      "id": "alpha-momentum",
+      "nameZh": "Alpha 動能突破型 AI",
+      "returnPct": -1.13,
+      "equity": 98873.84
+    },
+    "traders1M": {
+      "alpha-momentum": {
+        "returnPct": -1.13,
+        "equity": 98873.84,
+        "openPositions": [
+          "AAPL",
+          "MSFT",
+          "TSLA"
+        ]
+      },
+      "sigma-reversion": {
+        "returnPct": -1.15,
+        "equity": 98846.93,
+        "openPositions": [
+          "SPY",
+          "MSFT"
+        ]
+      },
+      "titan-multifactor": {
+        "returnPct": -1.86,
+        "equity": 98137.54,
+        "openPositions": [
+          "AAPL",
+          "MSFT",
+          "TSLA"
+        ]
+      }
+    }
+  },
+  {
     "syncedAt": "2026-10-27T00:38:21.863Z",
     "marketDate": "2026-10-23",
     "trigger": "schedule",
@@ -40,49 +84,6 @@
         "openPositions": [
           "AAPL",
           "SPY",
-          "MSFT",
-          "TSLA"
-        ]
-      }
-    }
-  },
-  {
-    "syncedAt": "2026-10-26T19:03:43.900Z",
-    "marketDate": "2026-10-26",
-    "trigger": "schedule",
-    "runNumber": 14,
-    "spyClose": 764.95,
-    "btcClose": 79905.91,
-    "nvdaClose": 216.17,
-    "benchmark1MReturnPct": -0.83,
-    "leader1M": {
-      "id": "alpha-momentum",
-      "nameZh": "Alpha 動能突破型 AI",
-      "returnPct": -1.11,
-      "equity": 98889.81
-    },
-    "traders1M": {
-      "alpha-momentum": {
-        "returnPct": -1.11,
-        "equity": 98889.81,
-        "openPositions": [
-          "AAPL",
-          "MSFT"
-        ]
-      },
-      "sigma-reversion": {
-        "returnPct": -1.24,
-        "equity": 98759.11,
-        "openPositions": [
-          "SPY",
-          "MSFT"
-        ]
-      },
-      "titan-multifactor": {
-        "returnPct": -1.83,
-        "equity": 98174.37,
-        "openPositions": [
-          "AAPL",
           "MSFT",
           "TSLA"
         ]
