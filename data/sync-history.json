@@ -1,11 +1,11 @@
 [
   {
-    "syncedAt": "2026-11-02T22:12:04.092Z",
+    "syncedAt": "2026-11-03T02:58:51.996Z",
     "marketDate": "2026-11-02",
     "trigger": "schedule",
-    "runNumber": 20,
+    "runNumber": 21,
     "spyClose": 752.1,
-    "btcClose": 76727.33,
+    "btcClose": 76629.25,
     "nvdaClose": 202.06,
     "benchmark1MReturnPct": -2.28,
     "leader1M": {
