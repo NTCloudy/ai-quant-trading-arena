@@ -1,12 +1,12 @@
 [
   {
-    "syncedAt": "2026-11-03T02:58:51.996Z",
+    "syncedAt": "2026-11-04T01:31:28.583Z",
     "marketDate": "2026-11-02",
     "trigger": "schedule",
-    "runNumber": 21,
-    "spyClose": 752.1,
-    "btcClose": 76629.25,
-    "nvdaClose": 202.06,
+    "runNumber": 22,
+    "spyClose": 754.35,
+    "btcClose": 76832.05,
+    "nvdaClose": 206.69,
     "benchmark1MReturnPct": -2.28,
     "leader1M": {
       "id": "alpha-momentum",
