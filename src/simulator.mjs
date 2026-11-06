@@ -172,9 +172,11 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       openPositions.set(h.symbol, {
         symbol: h.symbol, displayTicker: meta.displayTicker || h.symbol, assetNameZh: meta.nameZh,
         category: meta.category, entryDate: timelineDates[0], entryPrice: h.avgCost, currentPrice: px,
-        highestPrice: Math.max(h.avgCost, px), shares: h.shares, costBasis: h.shares * h.avgCost, entryFee: 0,
+        // P&L uses the real cost; the AI's own stop/target rules start from the takeover close (ruleEntry),
+        // so each strategy decides by its own logic (trend breaks etc.) instead of all hitting a stale cost stop.
+        highestPrice: px, ruleEntry: px, shares: h.shares, costBasis: h.shares * h.avgCost, entryFee: 0,
         barsHeld: 0, inherited: true, realAvgCost: h.avgCost,
-        stopLoss: h.avgCost * 0.958, takeProfit: h.avgCost * 1.15,
+        stopLoss: px * 0.958, takeProfit: px * 1.15,
         entryTagZh: '原始持倉', entryTagEn: 'Inherited',
         entryReasonZh: `你的原始持倉（買點＝你的實際均價 $${h.avgCost}），AI 依自己的策略決定續抱、停損或換股`,
         entryReasonEn: `Inherited holding at the real average cost $${h.avgCost}; the AI decides to hold, stop or rotate.`
@@ -236,7 +238,8 @@ export function runArenaSimulation(rawMarketData, options = {}) {
         const bar = barBySymbolAndDate[symbol]?.get(date);
         if (!bar) continue;
 
-        const decision = evaluateTraderSignal(trader.id, bar, pos, regime);
+        const rulePos = pos.inherited ? { ...pos, entryPrice: pos.ruleEntry } : pos;
+        const decision = evaluateTraderSignal(trader.id, bar, rulePos, regime);
         if (decision.action === 'SELL') {
           const grossProceeds = pos.shares * bar.close;
           const exitFee = grossProceeds * feeRate;
