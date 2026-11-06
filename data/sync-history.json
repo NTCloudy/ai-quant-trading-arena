@@ -1,5 +1,49 @@
 [
   {
+    "syncedAt": "2026-11-06T01:40:39.056Z",
+    "marketDate": "2026-11-04",
+    "trigger": "schedule",
+    "runNumber": 24,
+    "spyClose": 733,
+    "btcClose": 76045.55,
+    "nvdaClose": 181.6,
+    "benchmark1MReturnPct": -1.58,
+    "leader1M": {
+      "id": "sigma-reversion",
+      "nameZh": "Sigma 波段抄底型 AI",
+      "returnPct": -2.26,
+      "equity": 97740.18
+    },
+    "traders1M": {
+      "alpha-momentum": {
+        "returnPct": -5.37,
+        "equity": 94627.25,
+        "openPositions": [
+          "SPY",
+          "MSFT",
+          "AAPL",
+          "TSLA"
+        ]
+      },
+      "sigma-reversion": {
+        "returnPct": -2.26,
+        "equity": 97740.18,
+        "openPositions": [
+          "AAPL"
+        ]
+      },
+      "titan-multifactor": {
+        "returnPct": -5.87,
+        "equity": 94130.04,
+        "openPositions": [
+          "AAPL",
+          "SPY",
+          "TSLA"
+        ]
+      }
+    }
+  },
+  {
     "syncedAt": "2026-11-05T01:34:00.072Z",
     "marketDate": "2026-11-03",
     "trigger": "schedule",
