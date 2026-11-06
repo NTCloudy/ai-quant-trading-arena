@@ -435,6 +435,52 @@ export function runArenaSimulation(rawMarketData, options = {}) {
         }
       }
 
+      // STEP 2b (My Portfolio mode): an AI may also ADD to a stock it already holds when its own entry rule
+      // fires again and the position is below the AI's normal allocation. Funded only by cash from sells.
+      if (tradingOpen && portfolioMode && cash > 500) {
+        let invested = 0;
+        for (const p of openPositions.values()) invested += p.shares * p.currentPrice;
+        const equityNow = cash + invested;
+        for (const [symbol, pos] of openPositions) {
+          if (pos.entryDate === date) continue;
+          const bar = barBySymbolAndDate[symbol]?.get(date);
+          if (!bar) continue;
+          const decision = evaluateTraderSignal(trader.id, bar, null, regime);
+          if (decision.action !== 'BUY') continue;
+          const target = equityNow * (decision.allocationPct || trader.baseAllocation);
+          const gap = Math.min(target - pos.shares * bar.close, cash * 0.96);
+          if (gap < Math.max(500, equityNow * 0.04)) continue;
+          const meta = getAssetMeta(symbol);
+          const addShares = meta.category === 'crypto'
+            ? Math.floor((gap / (bar.close * (1 + feeRate))) * 1000) / 1000
+            : Math.floor(gap / (bar.close * (1 + feeRate)));
+          if (addShares <= 0) continue;
+          const gross = addShares * bar.close;
+          const fee = gross * feeRate;
+          if (gross + fee > cash) continue;
+          cash -= gross + fee;
+          const ruleBase = pos.ruleEntry ?? pos.entryPrice;
+          pos.ruleEntry = (ruleBase * pos.shares + bar.close * addShares) / (pos.shares + addShares);
+          pos.shares += addShares;
+          pos.costBasis += gross + fee;
+          pos.entryFee += fee;
+          pos.entryPrice = pos.costBasis / pos.shares;
+          pos.stopLoss = decision.stopLossPrice || bar.close * 0.958;
+          pos.takeProfit = decision.takeProfitPrice || bar.close * 1.15;
+          orderEvents.push({
+            id: `ADD-${trader.id}-${symbol}-${date}`, traderId: trader.id, traderName: trader.name,
+            traderNameZh: trader.nameZh, traderBadge: trader.badge, traderColor: trader.color, date,
+            isWithinPastWeek: recentWeekDates.has(date), entryDate: date, type: 'BUY', status: 'OPEN', symbol,
+            displayTicker: meta.displayTicker || symbol, assetName: meta.name, assetNameZh: meta.nameZh,
+            assetColor: meta.color, price: bar.close, entryPrice: bar.close, currentPrice: bar.close,
+            shares: addShares, amount: gross + fee, fee, stopLoss: pos.stopLoss, takeProfit: pos.takeProfit,
+            tagZh: `加碼｜${decision.tagZh || ''}`, tagEn: `Add｜${decision.tagEn || ''}`,
+            reasonZh: `已持有 ${symbol}，策略再次出現買點，加碼到正常配置：${decision.reasonZh || ''}`,
+            reasonEn: `Adding to an existing holding: ${decision.reasonEn || ''}`
+          });
+        }
+      }
+
       // STEP 3: Mark-to-Market end-of-day portfolio valuation
       let investedValue = 0;
       for (const pos of openPositions.values()) {
@@ -551,6 +597,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       if (!eventsByDate.has(ev.date)) eventsByDate.set(ev.date, []);
       eventsByDate.get(ev.date).push(ev);
     }
+    const periodPnl = buildPeriodPnl(equityCurve);
     const dailyCalendar = equityCurve.map((pt) => ({
       date: pt.date,
       equity: pt.equity,
@@ -628,6 +675,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       },
       equityCurve,
       dailyCalendar,
+      periodPnl,
       activePositions,
       closedTrades: closedTrades.slice().reverse(),
       orderEvents: orderEvents.slice().reverse()
@@ -1272,4 +1320,38 @@ export function runSingleAssetSimulation(rawMarketData, symbol, traderId, period
     openPositionSummary,
     assetBuyHoldPct
   };
+}
+
+
+/** Monday (YYYY-MM-DD) of the week containing `date`. */
+export function weekStart(date) {
+  const d = new Date(date + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Weekly and monthly P&L from an equity curve: each period's P&L = its last equity minus the last equity of the
+ * previous period (the first period is measured from the first point, i.e. the baseline day).
+ */
+export function buildPeriodPnl(curve) {
+  const group = (keyFn) => {
+    const out = [];
+    let prevEnd = curve.length ? curve[0].equity : 0;
+    for (const pt of curve) {
+      const key = keyFn(pt.date);
+      let row = out.at(-1);
+      if (!row || row.period !== key) {
+        if (row) prevEnd = row.endEquity;
+        row = { period: key, startEquity: prevEnd, endEquity: pt.equity, pnl: 0, from: pt.date, to: pt.date };
+        out.push(row);
+      }
+      row.endEquity = pt.equity;
+      row.to = pt.date;
+      row.pnl = row.endEquity - row.startEquity;
+      row.pnlPct = row.startEquity ? (row.pnl / row.startEquity) * 100 : 0;
+    }
+    return out;
+  };
+  return { weekly: group(weekStart), monthly: group((d) => d.slice(0, 7)) };
 }
