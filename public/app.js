@@ -2,11 +2,13 @@ import { ASSET_UNIVERSE, getAssetMeta } from './src/universe.mjs';
 import { AI_TRADERS } from './src/traders.mjs';
 import { runArenaSimulation, runSingleAssetSimulation } from './src/simulator.mjs';
 
+const LIVE_START = '2026-11-06'; // Fresh live paper account: nothing bought before this day counts.
+
 const state = {
   lang: 'zh',
   marketData: null,
   syncHistory: [],
-  periodDays: 22, // Default: 1 Month (22 trading days ~ 30 calendar days)
+  periodDays: 'live', // Default: live forward account that starts fresh on LIVE_START.
   initialCapital: 100000,
   marketFilter: 'all',
   feeRate: 0.001,
@@ -87,7 +89,7 @@ function bindControls() {
     const btn = e.target.closest('[data-period]');
     if (!btn) return;
     stopReplay();
-    state.periodDays = Number(btn.dataset.period);
+    state.periodDays = btn.dataset.period === 'live' ? 'live' : Number(btn.dataset.period);
     document
       .querySelectorAll('#period-pills .seg-pill')
       .forEach((el) => el.classList.toggle('active', el === btn));
@@ -288,7 +290,8 @@ function recomputeAndRender(selectChampion = false) {
   if (!state.marketData) return;
 
   state.arenaResult = runArenaSimulation(state.marketData, {
-    periodDays: state.periodDays,
+    periodDays: state.periodDays === 'live' ? 22 : state.periodDays,
+    tradeFromDate: state.periodDays === 'live' ? LIVE_START : null,
     initialCapital: state.initialCapital,
     feeRate: state.feeRate,
     marketFilter: state.marketFilter,
@@ -304,7 +307,7 @@ function recomputeAndRender(selectChampion = false) {
     state.marketData,
     state.selectedSymbol,
     state.selectedTraderId,
-    Math.max(40, state.periodDays)
+    Math.max(40, Number(state.periodDays) || 22)
   );
 
   renderTopTickerTape();
@@ -437,7 +440,7 @@ function renderTopTickerTape() {
         state.marketData,
         state.selectedSymbol,
         state.selectedTraderId,
-        Math.max(40, state.periodDays)
+        Math.max(40, Number(state.periodDays) || 22)
       );
       renderTopTickerTape();
       renderKlineAssetPills();
@@ -469,7 +472,11 @@ function renderHeaderMeta() {
   if (badge) {
     badge.textContent =
       state.lang === 'zh'
-        ? `實盤模擬區間：${cfg.startDate} → ${cfg.endDate}（共 ${cfg.tradingDaysCount} 個真實交易日 · ${cfg.enabledSymbols.length} 檔標的）`
+        ? cfg.tradeFromDate
+          ? (cfg.liveDaysCount > 0
+              ? `🔴 實盤：${cfg.tradeFromDate} 起全新帳戶 → ${cfg.endDate}（已交易 ${cfg.liveDaysCount} 個交易日 · ${cfg.enabledSymbols.length} 檔標的）`
+              : `🔴 實盤：${cfg.tradeFromDate} 起全新帳戶（等待第一個交易日收盤，之前買的都不算 · ${cfg.enabledSymbols.length} 檔標的）`)
+          : `回測區間：${cfg.startDate} → ${cfg.endDate}（共 ${cfg.tradingDaysCount} 個真實交易日 · ${cfg.enabledSymbols.length} 檔標的）`
         : `Simulation Window: ${cfg.startDate} → ${cfg.endDate} (${cfg.tradingDaysCount} Trading Days)`;
   }
 
@@ -637,7 +644,7 @@ function renderLeaderboard() {
         state.marketData,
         state.selectedSymbol,
         state.selectedTraderId,
-        Math.max(40, state.periodDays)
+        Math.max(40, Number(state.periodDays) || 22)
       );
       renderLeaderboard();
       renderDailyCalendarSection();
@@ -657,7 +664,7 @@ function jumpToKlineAssetAndTrader(symbol, traderId) {
     state.marketData,
     state.selectedSymbol,
     state.selectedTraderId,
-    Math.max(40, state.periodDays)
+    Math.max(40, Number(state.periodDays) || 22)
   );
   renderTopTickerTape();
   renderLeaderboard();
@@ -1410,7 +1417,7 @@ function renderKlineAssetPills() {
         state.marketData,
         state.selectedSymbol,
         state.selectedTraderId,
-        Math.max(40, state.periodDays)
+        Math.max(40, Number(state.periodDays) || 22)
       );
       renderTopTickerTape();
       renderKlineAssetPills();
@@ -1803,7 +1810,7 @@ function renderTraderSelectPills() {
         state.marketData,
         state.selectedSymbol,
         state.selectedTraderId,
-        Math.max(40, state.periodDays)
+        Math.max(40, Number(state.periodDays) || 22)
       );
       renderLeaderboard();
       renderDailyCalendarSection();
