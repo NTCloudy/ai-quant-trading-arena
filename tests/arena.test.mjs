@@ -180,6 +180,8 @@ test('my portfolio mode: starts from real holdings with zero cash; buys only fun
   const r = runArenaSimulation(raw, { tradeFromDate: dates.at(-40), initialHoldings: MY_PORTFOLIO.holdings });
   assert.equal(r.leaderboard.length, 4);
   const base = r.leaderboard[0].equityCurve[0].equity;
+  const cost = MY_PORTFOLIO.holdings.reduce((s, h) => s + h.shares * h.avgCost, 0);
+  assert.ok(Math.abs(r.config.initialCapital - cost) < 1e-6, 'capital = real total cost');
   for (const t of r.leaderboard) {
     assert.ok(Math.abs(t.equityCurve[0].equity - base) < 1e-6, 'all start from the same holdings value');
     assert.equal(t.equityCurve[0].cash, 0);

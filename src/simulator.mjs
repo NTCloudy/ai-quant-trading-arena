@@ -117,7 +117,8 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     return px ?? bars[0]?.close ?? 0;
   };
   if (portfolioMode) {
-    initialCapital = initialHoldings.reduce((sum, h) => sum + h.shares * baselineClose(h.symbol), 0);
+    // Capital = the owner's real total cost, so returns include the existing unrealized gains/losses.
+    initialCapital = initialHoldings.reduce((sum, h) => sum + h.shares * h.avgCost, 0);
   }
 
   // Last 5 trading days (~7 calendar days = Past 1 Week)
@@ -170,11 +171,13 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       const meta = getAssetMeta(h.symbol);
       openPositions.set(h.symbol, {
         symbol: h.symbol, displayTicker: meta.displayTicker || h.symbol, assetNameZh: meta.nameZh,
-        category: meta.category, entryDate: timelineDates[0], entryPrice: px, currentPrice: px, highestPrice: px,
-        shares: h.shares, costBasis: h.shares * px, entryFee: 0, barsHeld: 0, inherited: true, realAvgCost: h.avgCost,
-        stopLoss: px * 0.958, takeProfit: px * 1.15,
-        entryTagZh: '原始持倉', entryTagEn: 'Inherited', entryReasonZh: `你的原始持倉（實際均價 $${h.avgCost}），AI 從起始日收盤價接手管理`,
-        entryReasonEn: `Inherited holding (real avg cost $${h.avgCost}); managed from the start-day close.`
+        category: meta.category, entryDate: timelineDates[0], entryPrice: h.avgCost, currentPrice: px,
+        highestPrice: Math.max(h.avgCost, px), shares: h.shares, costBasis: h.shares * h.avgCost, entryFee: 0,
+        barsHeld: 0, inherited: true, realAvgCost: h.avgCost,
+        stopLoss: h.avgCost * 0.958, takeProfit: h.avgCost * 1.15,
+        entryTagZh: '原始持倉', entryTagEn: 'Inherited',
+        entryReasonZh: `你的原始持倉（買點＝你的實際均價 $${h.avgCost}），AI 依自己的策略決定續抱、停損或換股`,
+        entryReasonEn: `Inherited holding at the real average cost $${h.avgCost}; the AI decides to hold, stop or rotate.`
       });
     }
     const cooldownUntilDayIdx = new Map(); // symbol -> dayIdx cooldown after selling
@@ -440,7 +443,8 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       if (drawdownPct < maxDrawdownPct) maxDrawdownPct = drawdownPct;
 
       const returnPct = ((totalEquity - initialCapital) / initialCapital) * 100;
-      const prevEquity = equityCurve.length > 0 ? equityCurve.at(-1).equity : initialCapital;
+      const prevEquity =
+        equityCurve.length > 0 ? equityCurve.at(-1).equity : portfolioMode ? totalEquity : initialCapital;
       const dailyPnlDollar = totalEquity - prevEquity;
       const dailyReturn = prevEquity > 0 ? dailyPnlDollar / prevEquity : 0;
 

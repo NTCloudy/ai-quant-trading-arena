@@ -9,7 +9,7 @@ const state = {
   lang: 'zh',
   marketData: null,
   syncHistory: [],
-  periodDays: 'live', // Default: live forward account that starts fresh on LIVE_START.
+  periodDays: 'mine', // Default: the three AIs each manage a copy of the owner's real holdings.
   initialCapital: 100000,
   marketFilter: 'all',
   feeRate: 0.001,
@@ -475,7 +475,7 @@ function renderHeaderMeta() {
     badge.textContent =
       state.lang === 'zh'
         ? cfg.portfolioMode
-          ? `💼 我的持倉：${cfg.tradeFromDate} 起由 AI 接手（起始市值 ${fmtMoney(cfg.initialCapital, 0)}、現金 0，要買必須先賣；已交易 ${cfg.liveDaysCount || 0} 個交易日）`
+          ? `💼 我的持倉：${cfg.tradeFromDate} 起由 AI 接手（持股與買點同你的實際庫存，總成本 ${fmtMoney(cfg.initialCapital, 0)}、現金 0，要買必須先賣；已交易 ${cfg.liveDaysCount || 0} 個交易日）`
           : cfg.tradeFromDate
           ? (cfg.liveDaysCount > 0
               ? `🔴 實盤：${cfg.tradeFromDate} 起全新帳戶 → ${cfg.endDate}（已交易 ${cfg.liveDaysCount} 個交易日 · ${cfg.enabledSymbols.length} 檔標的）`
