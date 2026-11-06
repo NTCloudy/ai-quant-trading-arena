@@ -40,7 +40,7 @@ export function prepareEnrichedUniverse(rawMarketData) {
  */
 export function runArenaSimulation(rawMarketData, options = {}) {
   const periodDays = Number(options.periodDays || 22);
-  const initialCapital = Number(options.initialCapital || 100000);
+  let initialCapital = Number(options.initialCapital || 100000);
   const feeRate = Number(options.feeRate ?? 0.001);
   const marketFilter = options.marketFilter || 'all';
   const enabledSet =
@@ -49,6 +49,9 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       : null;
 
   const { enrichedBySymbol, barBySymbolAndDate } = prepareEnrichedUniverse(rawMarketData);
+  // My Portfolio mode: every AI starts from the owner's real holdings with zero cash.
+  const initialHoldings = (options.initialHoldings || []).filter((h) => enrichedBySymbol[h.symbol]?.length);
+  const portfolioMode = initialHoldings.length > 0;
 
   // Determine eligible tradeable symbols
   let eligibleAssets = ASSET_UNIVERSE.filter((asset) => {
@@ -70,6 +73,12 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     }
     return true;
   });
+
+  if (portfolioMode) {
+    for (const h of initialHoldings) {
+      if (!eligibleAssets.some((a) => a.symbol === h.symbol)) eligibleAssets.push(getAssetMeta(h.symbol));
+    }
+  }
 
   if (eligibleAssets.length === 0) {
     eligibleAssets = ASSET_UNIVERSE.filter(
@@ -96,6 +105,20 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     startIdx = firstLive === -1 ? Math.max(0, fullTimeline.length - 1) : Math.max(0, firstLive - 1);
   }
   const timelineDates = fullTimeline.slice(startIdx);
+
+  // Baseline close (last bar on or before the first timeline day) for each held symbol.
+  const baselineClose = (symbol) => {
+    const bars = enrichedBySymbol[symbol] || [];
+    let px = null;
+    for (const b of bars) {
+      if (b.date <= timelineDates[0]) px = b.close;
+      else break;
+    }
+    return px ?? bars[0]?.close ?? 0;
+  };
+  if (portfolioMode) {
+    initialCapital = initialHoldings.reduce((sum, h) => sum + h.shares * baselineClose(h.symbol), 0);
+  }
 
   // Last 5 trading days (~7 calendar days = Past 1 Week)
   const recentWeekDates = new Set(timelineDates.slice(-5));
@@ -128,9 +151,32 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     benchmarkCurve.length > 0 ? benchmarkCurve.at(-1).returnPct : 0;
 
   // Simulate each of the 3 AI Traders
-  const traderResults = AI_TRADERS.map((trader) => {
-    let cash = initialCapital;
+  const HOLD_TRADER = {
+    id: 'hold-as-is', name: 'My Holdings (no trades)', nameZh: '📌 你的持倉（不動）',
+    titleZh: '完全不操作的對照組', titleEn: 'Do-nothing baseline', badge: '📌 HOLD', color: '#f8fafc',
+    secondaryColor: '#94a3b8', riskLevelZh: '原始持倉', riskLevelEn: 'As-is', maxPositions: 99, baseAllocation: 0,
+    strategySummaryZh: '你目前的持倉一股都不動，作為三位 AI 操作的比較基準。',
+    strategySummaryEn: 'Your current holdings untouched, as the baseline for the three AIs.'
+  };
+  const traders = portfolioMode ? [...AI_TRADERS, HOLD_TRADER] : AI_TRADERS;
+
+  const traderResults = traders.map((trader) => {
+    let cash = portfolioMode ? 0 : initialCapital;
     const openPositions = new Map(); // symbol -> position object
+    const isHold = trader.id === 'hold-as-is';
+    const maxPositions = portfolioMode ? Math.max(trader.maxPositions, initialHoldings.length) : trader.maxPositions;
+    for (const h of initialHoldings) {
+      const px = baselineClose(h.symbol);
+      const meta = getAssetMeta(h.symbol);
+      openPositions.set(h.symbol, {
+        symbol: h.symbol, displayTicker: meta.displayTicker || h.symbol, assetNameZh: meta.nameZh,
+        category: meta.category, entryDate: timelineDates[0], entryPrice: px, currentPrice: px, highestPrice: px,
+        shares: h.shares, costBasis: h.shares * px, entryFee: 0, barsHeld: 0, inherited: true, realAvgCost: h.avgCost,
+        stopLoss: px * 0.958, takeProfit: px * 1.15,
+        entryTagZh: '原始持倉', entryTagEn: 'Inherited', entryReasonZh: `你的原始持倉（實際均價 $${h.avgCost}），AI 從起始日收盤價接手管理`,
+        entryReasonEn: `Inherited holding (real avg cost $${h.avgCost}); managed from the start-day close.`
+      });
+    }
     const cooldownUntilDayIdx = new Map(); // symbol -> dayIdx cooldown after selling
     const closedTrades = [];
     const orderEvents = [];
@@ -180,7 +226,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
         }
       }
 
-      const tradingOpen = !tradeFromDate || date >= tradeFromDate;
+      const tradingOpen = !isHold && (!tradeFromDate || date >= tradeFromDate);
 
       // STEP 1: Evaluate EXITS on currently held positions
       for (const [symbol, pos] of tradingOpen ? Array.from(openPositions.entries()) : []) {
@@ -277,7 +323,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       }
 
       // STEP 2: Evaluate ENTRIES across eligible assets not currently in portfolio
-      if (tradingOpen && openPositions.size < trader.maxPositions) {
+      if (tradingOpen && openPositions.size < maxPositions) {
         const candidates = [];
         for (const asset of eligibleAssets) {
           if (openPositions.has(asset.symbol)) continue;
@@ -307,7 +353,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
         const currentTotalEquity = cash + currentInvested;
 
         for (const cand of candidates) {
-          if (openPositions.size >= trader.maxPositions) break;
+          if (openPositions.size >= maxPositions) break;
 
           const allocPct = cand.decision.allocationPct || trader.baseAllocation;
           const targetDollar = Math.min(cash * 0.96, currentTotalEquity * allocPct);
@@ -693,6 +739,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       enabledSymbols: eligibleAssets.map((a) => a.symbol),
       startDate: tradeFromDate || timelineDates[0] || '',
       tradeFromDate,
+      portfolioMode,
       liveDaysCount: tradeFromDate ? timelineDates.filter((d) => d >= tradeFromDate).length : null,
       endDate: timelineDates.at(-1) || '',
       tradingDaysCount: timelineDates.length

@@ -2,6 +2,7 @@ import { ASSET_UNIVERSE, getAssetMeta } from './src/universe.mjs';
 import { AI_TRADERS } from './src/traders.mjs';
 import { runArenaSimulation, runSingleAssetSimulation } from './src/simulator.mjs';
 
+import { MY_PORTFOLIO } from './src/universe.mjs';
 const LIVE_START = '2026-11-06'; // Fresh live paper account: nothing bought before this day counts.
 
 const state = {
@@ -89,7 +90,7 @@ function bindControls() {
     const btn = e.target.closest('[data-period]');
     if (!btn) return;
     stopReplay();
-    state.periodDays = btn.dataset.period === 'live' ? 'live' : Number(btn.dataset.period);
+    state.periodDays = ['live', 'mine'].includes(btn.dataset.period) ? btn.dataset.period : Number(btn.dataset.period);
     document
       .querySelectorAll('#period-pills .seg-pill')
       .forEach((el) => el.classList.toggle('active', el === btn));
@@ -290,8 +291,9 @@ function recomputeAndRender(selectChampion = false) {
   if (!state.marketData) return;
 
   state.arenaResult = runArenaSimulation(state.marketData, {
-    periodDays: state.periodDays === 'live' ? 22 : state.periodDays,
-    tradeFromDate: state.periodDays === 'live' ? LIVE_START : null,
+    periodDays: typeof state.periodDays === 'string' ? 22 : state.periodDays,
+    tradeFromDate: state.periodDays === 'live' ? LIVE_START : state.periodDays === 'mine' ? MY_PORTFOLIO.startDate : null,
+    initialHoldings: state.periodDays === 'mine' ? MY_PORTFOLIO.holdings : null,
     initialCapital: state.initialCapital,
     feeRate: state.feeRate,
     marketFilter: state.marketFilter,
@@ -472,7 +474,9 @@ function renderHeaderMeta() {
   if (badge) {
     badge.textContent =
       state.lang === 'zh'
-        ? cfg.tradeFromDate
+        ? cfg.portfolioMode
+          ? `💼 我的持倉：${cfg.tradeFromDate} 起由 AI 接手（起始市值 ${fmtMoney(cfg.initialCapital, 0)}、現金 0，要買必須先賣；已交易 ${cfg.liveDaysCount || 0} 個交易日）`
+          : cfg.tradeFromDate
           ? (cfg.liveDaysCount > 0
               ? `🔴 實盤：${cfg.tradeFromDate} 起全新帳戶 → ${cfg.endDate}（已交易 ${cfg.liveDaysCount} 個交易日 · ${cfg.enabledSymbols.length} 檔標的）`
               : `🔴 實盤：${cfg.tradeFromDate} 起全新帳戶（等待第一個交易日收盤，之前買的都不算 · ${cfg.enabledSymbols.length} 檔標的）`)

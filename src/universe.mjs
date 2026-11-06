@@ -334,14 +334,47 @@ export const DISCOVERY_CANDIDATE_UNIVERSE = [
   }
 ];
 
-export const ALL_SYNC_ASSETS = [...ASSET_UNIVERSE, ...DISCOVERY_CANDIDATE_UNIVERSE];
+/**
+ * The owner's real holdings (both brokerage accounts merged), synced from screenshots on 2026-11-06.
+ * "My Portfolio" mode starts each AI with exactly these shares and zero cash: any buy must be funded by a sell.
+ * avgCost is the real average cost (display only); AI performance is measured from the start-day close.
+ */
+export const MY_PORTFOLIO = {
+  startDate: '2026-11-06',
+  syncedAt: '2026-11-06',
+  holdings: [
+    { symbol: 'TSLA', shares: 62.37759, avgCost: 418.53 },
+    { symbol: 'VOO', shares: 19.26958, avgCost: 589.15 },
+    { symbol: 'QQQ', shares: 17.90924, avgCost: 575.82 },
+    { symbol: 'NVDA', shares: 60, avgCost: 182.47 },
+    { symbol: 'GOOG', shares: 18.34339, avgCost: 245.32 },
+    { symbol: 'TSLL', shares: 290, avgCost: 15.71 },
+    { symbol: 'DRAM', shares: 45, avgCost: 69.8 }
+  ]
+};
+
+/** Holdings that are not part of the arena universe (synced daily, tradeable only in My Portfolio mode). */
+export const HOLDING_ASSETS = [
+  { symbol: 'VOO', yahooSymbol: 'VOO', name: 'Vanguard S&P 500 ETF', nameZh: 'VOO 標普500', category: 'us-etf',
+    subSector: 'index', sector: 'S&P 500 Index', sectorZh: '標普500 指數', color: '#b91c1c', lotStep: 1 },
+  { symbol: 'GOOG', yahooSymbol: 'GOOG', name: 'Alphabet Inc. C', nameZh: 'Google (GOOG)', category: 'us-stock',
+    subSector: 'mega', sector: 'AI Platform', sectorZh: 'AI 平台', color: '#4285f4', lotStep: 1 },
+  { symbol: 'TSLL', yahooSymbol: 'TSLL', name: 'Direxion Daily TSLA Bull 2X', nameZh: 'TSLL 2倍做多特斯拉',
+    category: 'us-etf', subSector: 'leveraged', sector: '2x Leveraged TSLA', sectorZh: '2 倍槓桿 ETF',
+    color: '#f59e0b', lotStep: 1 },
+  { symbol: 'DRAM', yahooSymbol: 'DRAM', name: 'Roundhill Memory ETF', nameZh: 'DRAM 記憶體 ETF',
+    category: 'us-etf', subSector: 'semi', sector: 'Memory ETF', sectorZh: '記憶體 ETF', color: '#a16207', lotStep: 1 }
+];
+
+export const ALL_SYNC_ASSETS = [...ASSET_UNIVERSE, ...DISCOVERY_CANDIDATE_UNIVERSE, ...HOLDING_ASSETS];
 
 export const BENCHMARK_SYMBOL = 'SPY';
 
 export function getAssetMeta(symbol) {
   return (
     ASSET_UNIVERSE.find((a) => a.symbol === symbol) ||
-    DISCOVERY_CANDIDATE_UNIVERSE.find((a) => a.symbol === symbol) || {
+    DISCOVERY_CANDIDATE_UNIVERSE.find((a) => a.symbol === symbol) ||
+    HOLDING_ASSETS.find((a) => a.symbol === symbol) || {
       symbol,
       yahooSymbol: symbol,
       displayTicker: symbol,

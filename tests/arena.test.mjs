@@ -107,8 +107,8 @@ test('Past-Week Operations, Top 5 Promising Forecast, Next Entry Watchlist, Dail
     );
     assert.equal(pick.isExternalDiscovery, true);
     assert.ok(pick.outlookScore >= 40 && pick.outlookScore <= 99);
-    assert.ok(pick.targetPrice30d > pick.currentPrice);
-    assert.ok(pick.stopLossPrice < pick.currentPrice);
+    // Target/stop are anchored to the weekly (Monday) price; the live price can move past them mid-week.
+    assert.ok(pick.stopLossPrice > 0 && pick.targetPrice30d > pick.stopLossPrice);
     assert.ok(Array.isArray(pick.catalystsZh) && pick.catalystsZh.length >= 2);
   }
 
@@ -170,5 +170,20 @@ test('live forward mode: fresh account, no orders before tradeFromDate', async (
   for (const t of future.leaderboard) {
     assert.equal(t.orderEvents.length, 0);
     assert.ok(Number.isFinite(t.metrics.totalReturnPct));
+  }
+});
+
+test('my portfolio mode: starts from real holdings with zero cash; buys only funded by sells', async () => {
+  const { MY_PORTFOLIO } = await import('../src/universe.mjs');
+  const raw = JSON.parse(await fs.readFile(path.join(__dirname, '..', 'data', 'market-snapshot.json'), 'utf8'));
+  const dates = raw.symbols.SPY.bars.map((b) => b.date);
+  const r = runArenaSimulation(raw, { tradeFromDate: dates.at(-40), initialHoldings: MY_PORTFOLIO.holdings });
+  assert.equal(r.leaderboard.length, 4);
+  const base = r.leaderboard[0].equityCurve[0].equity;
+  for (const t of r.leaderboard) {
+    assert.ok(Math.abs(t.equityCurve[0].equity - base) < 1e-6, 'all start from the same holdings value');
+    assert.equal(t.equityCurve[0].cash, 0);
+    for (const e of t.equityCurve) assert.ok(e.cash >= -1e-6, 'cash never negative (no extra money)');
+    if (t.trader.id === 'hold-as-is') assert.equal(t.orderEvents.length, 0);
   }
 });
