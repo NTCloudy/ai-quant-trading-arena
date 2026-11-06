@@ -70,6 +70,10 @@ async function initApp() {
     if (histRes && histRes.ok) {
       state.syncHistory = await histRes.json();
     }
+    try {  // Broad candidate universe (mid/small caps) used by the live modes; optional.
+      const br = await fetch(`./data/broad-snapshot.json?t=${Date.now()}`);
+      if (br.ok) state.broadData = await br.json();
+    } catch (e) { /* core universe only */ }
   } catch (err) {
     console.error('Failed to load market snapshot:', err);
     return;
@@ -292,6 +296,7 @@ function recomputeAndRender(selectChampion = false) {
 
   state.arenaResult = runArenaSimulation(state.marketData, {
     periodDays: typeof state.periodDays === 'string' ? 22 : state.periodDays,
+    broadData: typeof state.periodDays === 'string' ? state.broadData : null,
     tradeFromDate: state.periodDays === 'live' ? LIVE_START : state.periodDays === 'mine' ? MY_PORTFOLIO.startDate : null,
     initialHoldings: state.periodDays === 'mine' ? MY_PORTFOLIO.holdings : null,
     initialCapital: state.initialCapital,

@@ -2,8 +2,10 @@ import {
   ASSET_UNIVERSE,
   DISCOVERY_CANDIDATE_UNIVERSE,
   BENCHMARK_SYMBOL,
-  getAssetMeta
+  getAssetMeta,
+  registerAssets
 } from './universe.mjs';
+import { BROAD_CATEGORY } from './broad.mjs';
 import { enrichBarsWithIndicators } from './indicators.mjs';
 import { AI_TRADERS, evaluateTraderSignal } from './traders.mjs';
 
@@ -38,7 +40,33 @@ export function prepareEnrichedUniverse(rawMarketData) {
  * @param {string} [options.marketFilter='all'] 'all' | 'us-stock' | 'crypto'
  * @param {string[]} [options.enabledSymbols] Optional custom subset of tickers enabled by user
  */
+const broadCache = new WeakMap();
+/** Expands the compact broad snapshot ([date, o, h, l, c, v] rows) into bars + asset metadata (cached). */
+function expandBroad(broadData) {
+  if (!broadData?.symbols) return null;
+  if (broadCache.has(broadData)) return broadCache.get(broadData);
+  const symbols = {};
+  const assets = [];
+  for (const [sym, v] of Object.entries(broadData.symbols)) {
+    symbols[sym] = { bars: v.bars.map(([date, open, high, low, close, volume]) => ({ date, open, high, low, close, volume })) };
+    const label = v.nameZh && v.nameZh !== sym ? `${sym} ${v.nameZh}` : sym;
+    assets.push({ symbol: sym, yahooSymbol: v.yahooSymbol, displayTicker: label, name: label, nameZh: label,
+                  category: BROAD_CATEGORY, subSector: 'broad', sector: 'Broad universe', sectorZh: '廣泛選股池',
+                  color: '#94a3b8', lotStep: 1, isBroad: true });
+  }
+  registerAssets(assets);
+  const out = { symbols, assets };
+  broadCache.set(broadData, out);
+  return out;
+}
+
 export function runArenaSimulation(rawMarketData, options = {}) {
+  // Broad mode: the AIs may also pick any liquid name from the broad candidate universe (mid/small caps).
+  const broad = expandBroad(options.broadData);
+  if (broad) {
+    const merged = { ...broad.symbols, ...(rawMarketData.symbols || {}) };
+    rawMarketData = { ...rawMarketData, symbols: merged };
+  }
   const periodDays = Number(options.periodDays || 22);
   let initialCapital = Number(options.initialCapital || 100000);
   const feeRate = Number(options.feeRate ?? 0.001);
@@ -77,6 +105,12 @@ export function runArenaSimulation(rawMarketData, options = {}) {
   if (portfolioMode) {
     for (const h of initialHoldings) {
       if (!eligibleAssets.some((a) => a.symbol === h.symbol)) eligibleAssets.push(getAssetMeta(h.symbol));
+    }
+  }
+
+  if (broad && (marketFilter === 'all' || !marketFilter)) {
+    for (const a of broad.assets) {
+      if (!eligibleAssets.some((x) => x.symbol === a.symbol)) eligibleAssets.push(a);
     }
   }
 

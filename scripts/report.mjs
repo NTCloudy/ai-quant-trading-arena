@@ -6,7 +6,9 @@ import { MY_PORTFOLIO } from '../src/universe.mjs';
 
 const [kind = 'week', arg = new Date().toISOString().slice(0, 10)] = process.argv.slice(2);
 const raw = JSON.parse(fs.readFileSync(new URL('../data/market-snapshot.json', import.meta.url), 'utf8'));
-const r = runArenaSimulation(raw, { tradeFromDate: MY_PORTFOLIO.startDate, initialHoldings: MY_PORTFOLIO.holdings });
+let broadData = null;
+try { broadData = JSON.parse(fs.readFileSync(new URL('../data/broad-snapshot.json', import.meta.url), 'utf8')); } catch {}
+const r = runArenaSimulation(raw, { broadData, tradeFromDate: MY_PORTFOLIO.startDate, initialHoldings: MY_PORTFOLIO.holdings });
 const key = kind === 'week' ? weekStart(arg) : arg.slice(0, 7);
 const list = kind === 'week' ? 'weekly' : 'monthly';
 const rows = r.leaderboard.map((t) => {
