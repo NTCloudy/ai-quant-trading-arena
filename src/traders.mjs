@@ -188,6 +188,8 @@ function evalAlphaMomentum(bar, position, regime = { spyBullish: true }) {
     emaBullish &&
     atrPct <= 8.5 &&
     roc20 >= 6.5 &&
+    roc10 >= -0.5 &&
+    !(macdHist < 0 && macdHist <= prevMacdHist) &&
     score >= 74 &&
     rsi14 <= 68 &&
     zScore20 <= 1.2
@@ -237,6 +239,7 @@ function evalSigmaReversion(bar, position, regime = { spyBullish: true }) {
     bbPercentB,
     zScore20,
     roc5,
+    roc10,
     roc20,
     atrPct,
     dailyReturnPct
@@ -314,7 +317,7 @@ function evalSigmaReversion(bar, position, regime = { spyBullish: true }) {
 
   if (roc5 <= 0.4) score += 10;
 
-  if (healthyUptrend && score >= 70) {
+  if (healthyUptrend && roc10 >= -5.5 && score >= 70) {
     const stopLoss = close * (1 + slPct / 100);
     const takeProfit = Math.max(bbUpper * 1.02, close * (1 + tpPct / 100));
     return {
@@ -360,34 +363,37 @@ function evalTitanMultiFactor(bar, position, regime = { spyBullish: true }) {
     macdHist,
     prevMacdHist,
     bbUpper,
-    bbPercentB,
     zScore20,
     roc10,
     roc20,
     atrPct
   } = bar;
 
-  const structuralUptrend = close > sma50 && sma20 >= sma50 * 0.995 && sma50SlopePct >= 0.12;
+  const structuralUptrend =
+    close > sma50 && sma20 >= sma50 * 0.99 && sma50SlopePct >= 0.18 && ema8 >= ema21 * 0.996;
   const sharpeMomentum = atrPct > 0 ? roc20 / atrPct : 0;
   const stopPct = clamp(2.0 * atrPct, 4.0, 8.5);
-  const tpPct = Math.max(6.5, 1.6 * stopPct);
-  const trailStart = Math.max(9.5, 2.0 * stopPct);
+  const tpPct = 15.0;
+  const trailStart = 18.0;
 
-  const trendScore = structuralUptrend ? 30 + (ema8 >= ema21 * 0.995 ? 10 : 0) : 0;
+  const trendScore = structuralUptrend ? 35 : 0;
   const momScore =
-    sharpeMomentum >= 1.2 ? Math.min(25, Math.round(sharpeMomentum * 8)) : roc10 >= 0.5 ? 12 : 0;
+    sharpeMomentum >= 1.1 ? Math.min(25, Math.round(sharpeMomentum * 7)) : roc10 >= 1.0 ? 12 : 0;
   const valueEntryScore =
-    zScore20 <= -0.35 ? 25 : zScore20 <= 0.35 ? 18 : zScore20 <= 0.95 ? 8 : 0;
+    zScore20 >= -0.6 && zScore20 <= 0.85 ? 20 : zScore20 <= 1.2 ? 12 : 0;
   const oscillatorScore =
-    rsi14 >= 42 && rsi14 <= 62 && (macdHist >= prevMacdHist || rsi14 >= prevRsi14 - 1) ? 15 : 0;
-  const riskScore =
-    atrPct <= 2.9
+    rsi14 >= 45 &&
+    rsi14 <= 67 &&
+    rsi14 >= prevRsi14 - 1 &&
+    (macdHist > prevMacdHist || macdHist > 0)
       ? 15
-      : atrPct <= 3.8
-        ? 8
-        : atrPct <= 8.5 && sharpeMomentum >= 1.25 && roc20 >= 6.0 && sma50SlopePct >= 0.25
-          ? 12
-          : 0;
+      : 0;
+  const riskScore =
+    atrPct <= 3.8
+      ? 15
+      : atrPct <= 8.5 && sharpeMomentum >= 1.2 && roc20 >= 6.0 && sma50SlopePct >= 0.22
+        ? 12
+        : 0;
   const regimeBonus = regime?.spyBullish !== false ? 5 : 0;
   const compositeScore =
     trendScore + momScore + valueEntryScore + oscillatorScore + riskScore + regimeBonus;
@@ -397,11 +403,11 @@ function evalTitanMultiFactor(bar, position, regime = { spyBullish: true }) {
     const peakPrice = Math.max(position.highestPrice || position.entryPrice, close);
     const peakGainPct = ((peakPrice - position.entryPrice) / position.entryPrice) * 100;
 
-    // 1. Harvest institutional compound gain
+    // 1. Harvest institutional compound gain (+28% surge or +15% with overbought RSI/Z-Score, or 18% trailing lock)
     if (
-      (pnlPct >= tpPct && (zScore20 >= 1.45 || rsi14 >= 68 || bbPercentB >= 0.90)) ||
-      pnlPct >= 24.0 ||
-      (peakGainPct >= trailStart && pnlPct <= peakGainPct * 0.60)
+      pnlPct >= 28.0 ||
+      (pnlPct >= tpPct && (rsi14 >= 72 || zScore20 >= 1.85)) ||
+      (peakGainPct >= trailStart && pnlPct <= peakGainPct * 0.58)
     ) {
       return {
         action: 'SELL',
@@ -413,7 +419,20 @@ function evalTitanMultiFactor(bar, position, regime = { spyBullish: true }) {
       };
     }
 
-    // 2. Exit when structural trend breaks or risk-parity stop (-stopPct)
+    // 2. SMA20 + EMA8/21 momentum breakdown exit
+    if (position.barsHeld >= 2 && close < sma20 * 0.985 && ema8 < ema21) {
+      const signedPct = `${pnlPct >= 0 ? '+' : ''}${fmt(pnlPct, 1)}%`;
+      return {
+        action: 'SELL',
+        conviction: 88,
+        tagZh: `跌破月線保護出場 (${signedPct})`,
+        tagEn: `SMA20 Breakdown Exit (${signedPct})`,
+        reasonZh: `收盤價 ($${fmt(close)}) 跌破月線 ($${fmt(sma20)}) 且 EMA8 下穿 EMA21，短中線趨勢轉弱，結算部位（${signedPct}）保護資本。`,
+        reasonEn: `Close ($${fmt(close)}) broke below SMA20 ($${fmt(sma20)}) with EMA8 < EMA21; exiting at ${signedPct}.`
+      };
+    }
+
+    // 3. Exit when structural trend breaks or risk-parity stop (-stopPct)
     const isStop = pnlPct <= -stopPct || close <= position.stopLoss;
     if (
       isStop ||
@@ -448,22 +467,25 @@ function evalTitanMultiFactor(bar, position, regime = { spyBullish: true }) {
 
   const validVol =
     atrPct <= 3.8 ||
-    (atrPct <= 8.5 && sharpeMomentum >= 1.25 && roc20 >= 6.0 && sma50SlopePct >= 0.25);
+    (atrPct <= 8.5 && sharpeMomentum >= 1.2 && roc20 >= 6.0 && sma50SlopePct >= 0.22);
 
   if (
     structuralUptrend &&
     validVol &&
-    compositeScore >= 74 &&
-    rsi14 <= 63 &&
-    zScore20 <= 0.95
+    roc20 >= 5.5 &&
+    roc10 >= 0.2 &&
+    !(macdHist < 0 && macdHist <= prevMacdHist) &&
+    compositeScore >= 75 &&
+    rsi14 <= 67 &&
+    zScore20 <= 1.2
   ) {
-    const allocationPct = clamp(0.015 / (stopPct / 100), 0.14, 0.25);
+    const allocationPct = clamp(0.016 / (stopPct / 100), 0.16, 0.25);
     const stopLoss = close * (1 - stopPct / 100);
-    const takeProfit = Math.max(bbUpper * 1.03, close * (1 + tpPct / 100));
+    const takeProfit = Math.max(bbUpper * 1.04, close * (1 + tpPct / 100));
 
     return {
       action: 'BUY',
-      conviction: Math.min(99, compositeScore + Math.round(sharpeMomentum * 2)),
+      conviction: Math.min(99, compositeScore + Math.round(sharpeMomentum * 4)),
       allocationPct,
       stopLossPrice: stopLoss,
       takeProfitPrice: takeProfit,
@@ -479,7 +501,7 @@ function evalTitanMultiFactor(bar, position, regime = { spyBullish: true }) {
     conviction: Math.min(72, Math.max(20, compositeScore)),
     tagZh: `因子觀望 (${compositeScore}分)`,
     tagEn: `Factor Neutral (${compositeScore}/100)`,
-    reasonZh: `多因子綜合評分 ${compositeScore}/100（建倉門檻 74 分），維持現金部位等待高勝率共振。`,
-    reasonEn: `Composite score ${compositeScore}/100 below 74 threshold; preserving cash.`
+    reasonZh: `多因子綜合評分 ${compositeScore}/100（建倉門檻 75 分），維持現金部位等待高勝率共振。`,
+    reasonEn: `Composite score ${compositeScore}/100 below 75 threshold; preserving cash.`
   };
 }
