@@ -10,6 +10,23 @@ import { enrichBarsWithIndicators } from './indicators.mjs';
 import { AI_TRADERS, evaluateTraderSignal } from './traders.mjs';
 
 /**
+ * Unified benchmark regime builder used across simulation, radar, top5, and single-asset K-line.
+ */
+export function buildRegime(spyBar) {
+  return {
+    spyBullish: spyBar
+      ? spyBar.close >= spyBar.sma50 * 0.99 && spyBar.sma20 >= spyBar.sma50 * 0.985
+      : true,
+    spyShortTermBull: spyBar
+      ? spyBar.close >= spyBar.sma20 * 0.99 || spyBar.ema8 >= spyBar.ema21
+      : true,
+    spyRsi: spyBar ? spyBar.rsi14 : 50,
+    spyRoc10: spyBar ? spyBar.roc10 : 0,
+    spyRoc20: spyBar ? spyBar.roc20 : 0
+  };
+}
+
+/**
  * Prepares enriched bar maps and aligned trading timeline across the asset universe.
  */
 export function prepareEnrichedUniverse(rawMarketData) {
@@ -48,11 +65,31 @@ function expandBroad(broadData) {
   const symbols = {};
   const assets = [];
   for (const [sym, v] of Object.entries(broadData.symbols)) {
-    symbols[sym] = { bars: v.bars.map(([date, open, high, low, close, volume]) => ({ date, open, high, low, close, volume })) };
+    symbols[sym] = {
+      bars: v.bars.map(([date, open, high, low, close, volume]) => ({
+        date,
+        open,
+        high,
+        low,
+        close,
+        volume
+      }))
+    };
     const label = v.nameZh && v.nameZh !== sym ? `${sym} ${v.nameZh}` : sym;
-    assets.push({ symbol: sym, yahooSymbol: v.yahooSymbol, displayTicker: label, name: label, nameZh: label,
-                  category: BROAD_CATEGORY, subSector: 'broad', sector: 'Broad universe', sectorZh: '廣泛選股池',
-                  color: '#94a3b8', lotStep: 1, isBroad: true });
+    assets.push({
+      symbol: sym,
+      yahooSymbol: v.yahooSymbol,
+      displayTicker: label,
+      name: label,
+      nameZh: label,
+      category: BROAD_CATEGORY,
+      subSector: 'broad',
+      sector: 'Broad universe',
+      sectorZh: '廣泛選股池',
+      color: '#94a3b8',
+      lotStep: 1,
+      isBroad: true
+    });
   }
   registerAssets(assets);
   const out = { symbols, assets };
@@ -75,10 +112,13 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     Array.isArray(options.enabledSymbols) && options.enabledSymbols.length > 0
       ? new Set(options.enabledSymbols)
       : null;
+  const isCustomSubset = enabledSet && ASSET_UNIVERSE.some((a) => !enabledSet.has(a.symbol));
 
   const { enrichedBySymbol, barBySymbolAndDate } = prepareEnrichedUniverse(rawMarketData);
   // My Portfolio mode: every AI starts from the owner's real holdings with zero cash.
-  const initialHoldings = (options.initialHoldings || []).filter((h) => enrichedBySymbol[h.symbol]?.length);
+  const initialHoldings = (options.initialHoldings || []).filter(
+    (h) => enrichedBySymbol[h.symbol]?.length
+  );
   const portfolioMode = initialHoldings.length > 0;
 
   // Determine eligible tradeable symbols
@@ -104,11 +144,13 @@ export function runArenaSimulation(rawMarketData, options = {}) {
 
   if (portfolioMode) {
     for (const h of initialHoldings) {
-      if (!eligibleAssets.some((a) => a.symbol === h.symbol)) eligibleAssets.push(getAssetMeta(h.symbol));
+      if (!eligibleAssets.some((a) => a.symbol === h.symbol)) {
+        eligibleAssets.push(getAssetMeta(h.symbol));
+      }
     }
   }
 
-  if (broad && (marketFilter === 'all' || !marketFilter)) {
+  if (broad && !isCustomSubset && (marketFilter === 'all' || !marketFilter)) {
     for (const a of broad.assets) {
       if (!eligibleAssets.some((x) => x.symbol === a.symbol)) eligibleAssets.push(a);
     }
@@ -129,11 +171,17 @@ export function runArenaSimulation(rawMarketData, options = {}) {
         : eligibleAssets[0]?.symbol || Object.keys(enrichedBySymbol)[0];
 
   const fullTimeline = (enrichedBySymbol[timelineSymbol] || []).map((b) => b.date);
+  const spyTimeline = (enrichedBySymbol[BENCHMARK_SYMBOL] || []).map((b) => b.date);
   // Live forward mode: `tradeFromDate` (YYYY-MM-DD) starts a fresh account on that day. The last bar before it
   // is a baseline day (equity = capital, benchmark anchor) and no orders are allowed before the start date, so
   // nothing bought earlier counts. Indicators still warm up on the full history (no look-ahead).
   const tradeFromDate = options.tradeFromDate || null;
   let startIdx = Math.max(0, fullTimeline.length - periodDays);
+  if (!tradeFromDate && spyTimeline.length > 0 && timelineSymbol !== BENCHMARK_SYMBOL) {
+    const anchorDate = spyTimeline[Math.max(0, spyTimeline.length - periodDays)];
+    const alignedIdx = fullTimeline.findIndex((d) => d >= anchorDate);
+    if (alignedIdx !== -1) startIdx = alignedIdx;
+  }
   if (tradeFromDate) {
     const firstLive = fullTimeline.findIndex((d) => d >= tradeFromDate);
     startIdx = firstLive === -1 ? Math.max(0, fullTimeline.length - 1) : Math.max(0, firstLive - 1);
@@ -150,9 +198,11 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     }
     return px ?? bars[0]?.close ?? 0;
   };
+  let baseEquity = initialCapital;
   if (portfolioMode) {
     // Capital = the owner's real total cost, so returns include the existing unrealized gains/losses.
     initialCapital = initialHoldings.reduce((sum, h) => sum + h.shares * h.avgCost, 0);
+    baseEquity = initialHoldings.reduce((sum, h) => sum + h.shares * baselineClose(h.symbol), 0);
   }
 
   // Last 5 trading days (~7 calendar days = Past 1 Week)
@@ -187,9 +237,18 @@ export function runArenaSimulation(rawMarketData, options = {}) {
 
   // Simulate each of the 3 AI Traders
   const HOLD_TRADER = {
-    id: 'hold-as-is', name: 'My Holdings (no trades)', nameZh: '📌 你的持倉（不動）',
-    titleZh: '完全不操作的對照組', titleEn: 'Do-nothing baseline', badge: '📌 HOLD', color: '#f8fafc',
-    secondaryColor: '#94a3b8', riskLevelZh: '原始持倉', riskLevelEn: 'As-is', maxPositions: 99, baseAllocation: 0,
+    id: 'hold-as-is',
+    name: 'My Holdings (no trades)',
+    nameZh: '📌 你的持倉（不動）',
+    titleZh: '完全不操作的對照組',
+    titleEn: 'Do-nothing baseline',
+    badge: '📌 HOLD',
+    color: '#f8fafc',
+    secondaryColor: '#94a3b8',
+    riskLevelZh: '原始持倉',
+    riskLevelEn: 'As-is',
+    maxPositions: 99,
+    baseAllocation: 0,
     strategySummaryZh: '你目前的持倉一股都不動，作為三位 AI 操作的比較基準。',
     strategySummaryEn: 'Your current holdings untouched, as the baseline for the three AIs.'
   };
@@ -199,28 +258,45 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     let cash = portfolioMode ? 0 : initialCapital;
     const openPositions = new Map(); // symbol -> position object
     const isHold = trader.id === 'hold-as-is';
-    const maxPositions = portfolioMode ? Math.max(trader.maxPositions, initialHoldings.length) : trader.maxPositions;
+    const maxPositions = portfolioMode
+      ? Math.max(trader.maxPositions, initialHoldings.length)
+      : trader.maxPositions;
     for (const h of initialHoldings) {
       const px = baselineClose(h.symbol);
       const meta = getAssetMeta(h.symbol);
       openPositions.set(h.symbol, {
-        symbol: h.symbol, displayTicker: meta.displayTicker || h.symbol, assetNameZh: meta.nameZh,
-        category: meta.category, entryDate: timelineDates[0], entryPrice: h.avgCost, currentPrice: px,
+        symbol: h.symbol,
+        displayTicker: meta.displayTicker || h.symbol,
+        assetNameZh: meta.nameZh,
+        category: meta.category,
+        entryDate: timelineDates[0],
+        entryPrice: h.avgCost,
+        currentPrice: px,
         // P&L uses the real cost; the AI's own stop/target rules start from the takeover close (ruleEntry),
         // so each strategy decides by its own logic (trend breaks etc.) instead of all hitting a stale cost stop.
-        highestPrice: px, ruleEntry: px, shares: h.shares, costBasis: h.shares * h.avgCost, entryFee: 0,
-        barsHeld: 0, inherited: true, realAvgCost: h.avgCost,
-        stopLoss: px * 0.958, takeProfit: px * 1.15,
-        entryTagZh: '原始持倉', entryTagEn: 'Inherited',
+        highestPrice: px,
+        ruleEntry: px,
+        ruleCostBasis: h.shares * px,
+        shares: h.shares,
+        costBasis: h.shares * h.avgCost,
+        entryFee: 0,
+        barsHeld: 0,
+        inherited: true,
+        realAvgCost: h.avgCost,
+        lots: [{ date: timelineDates[0], shares: h.shares, price: h.avgCost }],
+        stopLoss: px * 0.958,
+        takeProfit: px * 1.15,
+        entryTagZh: '原始持倉',
+        entryTagEn: 'Inherited',
         entryReasonZh: `你的原始持倉（買點＝你的實際均價 $${h.avgCost}），AI 依自己的策略決定續抱、停損或換股`,
         entryReasonEn: `Inherited holding at the real average cost $${h.avgCost}; the AI decides to hold, stop or rotate.`
       });
     }
-    const cooldownUntilDayIdx = new Map(); // symbol -> dayIdx cooldown after selling
+    const cooldownUntilBarIdx = new Map(); // symbol -> barIndex cooldown after selling
     const closedTrades = [];
     const orderEvents = [];
     const equityCurve = [];
-    let peakEquity = initialCapital;
+    let peakEquity = portfolioMode ? 0 : initialCapital;
     let maxDrawdownPct = 0;
 
     // Track last close price for each asset in case a crypto/stock holiday differs
@@ -234,22 +310,20 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       }
     }
 
+    let lastSpyBar =
+      (enrichedBySymbol[BENCHMARK_SYMBOL] || [])
+        .filter((b) => b.date <= timelineDates[0])
+        .at(-1) || null;
+
     for (let dayIdx = 0; dayIdx < timelineDates.length; dayIdx++) {
       const date = timelineDates[dayIdx];
-      const spyBar = barBySymbolAndDate[BENCHMARK_SYMBOL]?.get(date);
-      const regime = {
-        spyBullish: spyBar
-          ? spyBar.close >= spyBar.sma50 * 0.99 && spyBar.sma20 >= spyBar.sma50 * 0.985
-          : true,
-        spyShortTermBull: spyBar
-          ? spyBar.close >= spyBar.sma20 * 0.99 || spyBar.ema8 >= spyBar.ema21
-          : true,
-        spyRsi: spyBar ? spyBar.rsi14 : 50,
-        spyRoc10: spyBar ? spyBar.roc10 : 0,
-        spyRoc20: spyBar ? spyBar.roc20 : 0
-      };
+      const spyBarToday = barBySymbolAndDate[BENCHMARK_SYMBOL]?.get(date);
+      if (spyBarToday) lastSpyBar = spyBarToday;
+      const regime = buildRegime(spyBarToday || lastSpyBar);
 
-      // Update last known prices & increment holding days
+      const tradingOpen = !isHold && (!tradeFromDate || date >= tradeFromDate);
+
+      // Update last known prices & increment holding days only when trading is active
       for (const asset of eligibleAssets) {
         const bar = barBySymbolAndDate[asset.symbol]?.get(date);
         if (bar) {
@@ -257,17 +331,17 @@ export function runArenaSimulation(rawMarketData, options = {}) {
         }
         const pos = openPositions.get(asset.symbol);
         if (pos && bar) {
-          pos.barsHeld += 1;
+          if (tradingOpen) pos.barsHeld += 1;
           pos.currentPrice = bar.close;
-          pos.highestPrice = Math.max(pos.highestPrice, bar.high || bar.close);
+          if (!tradingOpen) {
+            pos.highestPrice = Math.max(pos.highestPrice, bar.high || bar.close);
+          }
         } else if (pos && lastKnownClose[asset.symbol]) {
           pos.currentPrice = lastKnownClose[asset.symbol];
         }
       }
 
-      const tradingOpen = !isHold && (!tradeFromDate || date >= tradeFromDate);
-
-      // STEP 1: Evaluate EXITS on currently held positions
+      // STEP 1: Evaluate EXITS on currently held positions (strictly before updating highestPrice with today's bar.high)
       for (const [symbol, pos] of tradingOpen ? Array.from(openPositions.entries()) : []) {
         const bar = barBySymbolAndDate[symbol]?.get(date);
         if (!bar) continue;
@@ -279,13 +353,15 @@ export function runArenaSimulation(rawMarketData, options = {}) {
           const exitFee = grossProceeds * feeRate;
           const netProceeds = grossProceeds - exitFee;
           const totalFees = pos.entryFee + exitFee;
-          const netPnl = netProceeds - pos.costBasis;
-          const netPnlPct = (netPnl / pos.costBasis) * 100;
+          const historicalPnl = netProceeds - pos.costBasis;
+          const activeBasis = portfolioMode ? (pos.ruleCostBasis ?? pos.costBasis) : pos.costBasis;
+          const netPnl = netProceeds - activeBasis;
+          const netPnlPct = activeBasis > 0 ? (netPnl / activeBasis) * 100 : 0;
 
           cash += netProceeds;
           openPositions.delete(symbol);
-          // Prevent same-day or next-day whipsaw re-entry on the same ticker
-          cooldownUntilDayIdx.set(symbol, dayIdx + 2);
+          // Prevent same-day or next-day whipsaw re-entry on the same ticker using asset barIndex
+          cooldownUntilBarIdx.set(symbol, (bar.barIndex ?? dayIdx) + 2);
 
           const meta = getAssetMeta(symbol);
           const tradeRecord = {
@@ -304,15 +380,19 @@ export function runArenaSimulation(rawMarketData, options = {}) {
             exitDate: date,
             barsHeld: pos.barsHeld,
             shares: pos.shares,
-            entryPrice: pos.entryPrice,
+            entryPrice: portfolioMode && pos.inherited ? pos.ruleEntry : pos.entryPrice,
+            realAvgCost: pos.realAvgCost ?? pos.entryPrice,
             exitPrice: bar.close,
             stopLoss: pos.stopLoss,
             takeProfit: pos.takeProfit,
-            costBasis: pos.costBasis,
+            costBasis: activeBasis,
+            historicalCostBasis: pos.costBasis,
+            historicalPnl,
             netProceeds,
             feesPaid: totalFees,
             netPnl,
             netPnlPct,
+            lots: pos.lots || [],
             entryTagZh: pos.entryTagZh,
             entryTagEn: pos.entryTagEn,
             entryReasonZh: pos.entryReasonZh,
@@ -334,6 +414,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
             date,
             isWithinPastWeek: recentWeekDates.has(date),
             entryDate: pos.entryDate,
+            posEntryDate: pos.entryDate,
             exitDate: date,
             barsHeld: pos.barsHeld,
             type: 'SELL',
@@ -344,7 +425,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
             assetNameZh: meta.nameZh,
             assetColor: meta.color,
             price: bar.close,
-            entryPrice: pos.entryPrice,
+            entryPrice: portfolioMode && pos.inherited ? pos.ruleEntry : pos.entryPrice,
             exitPrice: bar.close,
             currentPrice: bar.close,
             stopLoss: pos.stopLoss,
@@ -354,11 +435,15 @@ export function runArenaSimulation(rawMarketData, options = {}) {
             fee: exitFee,
             pnl: netPnl,
             pnlPct: netPnlPct,
+            historicalPnl,
             tagZh: decision.tagZh,
             tagEn: decision.tagEn,
             reasonZh: decision.reasonZh,
             reasonEn: decision.reasonEn
           });
+        } else {
+          // Position stays held: now update highestPrice with today's bar.high
+          pos.highestPrice = Math.max(pos.highestPrice, bar.high || bar.close);
         }
       }
 
@@ -367,11 +452,11 @@ export function runArenaSimulation(rawMarketData, options = {}) {
         const candidates = [];
         for (const asset of eligibleAssets) {
           if (openPositions.has(asset.symbol)) continue;
-          const cd = cooldownUntilDayIdx.get(asset.symbol);
-          if (cd !== undefined && dayIdx <= cd) continue;
-
           const bar = barBySymbolAndDate[asset.symbol]?.get(date);
           if (!bar) continue;
+
+          const cd = cooldownUntilBarIdx.get(asset.symbol);
+          if (cd !== undefined && (bar.barIndex ?? dayIdx) < cd) continue;
 
           const decision = evaluateTraderSignal(trader.id, bar, null, regime);
           if (decision.action === 'BUY') {
@@ -400,13 +485,12 @@ export function runArenaSimulation(rawMarketData, options = {}) {
           if (targetDollar < currentTotalEquity * 0.06 || targetDollar < 500) continue;
 
           const entryPrice = cand.bar.close;
+          const step = cand.asset.lotStep || (cand.asset.category === 'crypto' ? 0.001 : cand.asset.category === 'commodity' ? 0.01 : 1);
           const rawShares = targetDollar / (entryPrice * (1 + feeRate));
           const shares =
-            cand.asset.category === 'crypto'
-              ? Math.floor(rawShares * 1000) / 1000
-              : cand.asset.category === 'commodity'
-                ? Math.floor(rawShares * 10) / 10
-                : Math.max(1, Math.floor(rawShares));
+            step >= 1
+              ? Math.floor(rawShares)
+              : Math.round(Math.floor(rawShares / step) * step * 1e6) / 1e6;
 
           const grossCost = shares * entryPrice;
           const entryFee = grossCost * feeRate;
@@ -423,11 +507,14 @@ export function runArenaSimulation(rawMarketData, options = {}) {
             entryDate: date,
             entryPrice,
             currentPrice: entryPrice,
-            highestPrice: cand.bar.high || entryPrice,
+            highestPrice: entryPrice,
+            ruleEntry: entryPrice,
+            ruleCostBasis: totalCost,
             shares,
             costBasis: totalCost,
             entryFee,
             barsHeld: 0,
+            lots: [{ date, shares, price: entryPrice }],
             stopLoss: cand.decision.stopLossPrice || entryPrice * 0.958,
             takeProfit: cand.decision.takeProfitPrice || entryPrice * 1.15,
             entryTagZh: cand.decision.tagZh,
@@ -446,6 +533,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
             date,
             isWithinPastWeek: recentWeekDates.has(date),
             entryDate: date,
+            posEntryDate: date,
             type: 'BUY',
             status: 'OPEN',
             symbol: cand.asset.symbol,
@@ -485,9 +573,10 @@ export function runArenaSimulation(rawMarketData, options = {}) {
           const gap = Math.min(target - pos.shares * bar.close, cash * 0.96);
           if (gap < Math.max(500, equityNow * 0.04)) continue;
           const meta = getAssetMeta(symbol);
-          const addShares = meta.category === 'crypto'
-            ? Math.floor((gap / (bar.close * (1 + feeRate))) * 1000) / 1000
-            : Math.floor(gap / (bar.close * (1 + feeRate)));
+          const addShares =
+            meta.category === 'crypto'
+              ? Math.floor((gap / (bar.close * (1 + feeRate))) * 1000) / 1000
+              : Math.floor(gap / (bar.close * (1 + feeRate)));
           if (addShares <= 0) continue;
           const gross = addShares * bar.close;
           const fee = gross * feeRate;
@@ -495,20 +584,43 @@ export function runArenaSimulation(rawMarketData, options = {}) {
           cash -= gross + fee;
           const ruleBase = pos.ruleEntry ?? pos.entryPrice;
           pos.ruleEntry = (ruleBase * pos.shares + bar.close * addShares) / (pos.shares + addShares);
+          pos.ruleCostBasis = (pos.ruleCostBasis ?? pos.costBasis) + gross + fee;
           pos.shares += addShares;
           pos.costBasis += gross + fee;
           pos.entryFee += fee;
           pos.entryPrice = pos.costBasis / pos.shares;
+          if (!pos.lots) pos.lots = [];
+          pos.lots.push({ date, shares: addShares, price: bar.close });
           pos.stopLoss = decision.stopLossPrice || bar.close * 0.958;
           pos.takeProfit = decision.takeProfitPrice || bar.close * 1.15;
           orderEvents.push({
-            id: `ADD-${trader.id}-${symbol}-${date}`, traderId: trader.id, traderName: trader.name,
-            traderNameZh: trader.nameZh, traderBadge: trader.badge, traderColor: trader.color, date,
-            isWithinPastWeek: recentWeekDates.has(date), entryDate: date, type: 'BUY', status: 'OPEN', symbol,
-            displayTicker: meta.displayTicker || symbol, assetName: meta.name, assetNameZh: meta.nameZh,
-            assetColor: meta.color, price: bar.close, entryPrice: bar.close, currentPrice: bar.close,
-            shares: addShares, amount: gross + fee, fee, stopLoss: pos.stopLoss, takeProfit: pos.takeProfit,
-            tagZh: `加碼｜${decision.tagZh || ''}`, tagEn: `Add｜${decision.tagEn || ''}`,
+            id: `ADD-${trader.id}-${symbol}-${date}`,
+            traderId: trader.id,
+            traderName: trader.name,
+            traderNameZh: trader.nameZh,
+            traderBadge: trader.badge,
+            traderColor: trader.color,
+            date,
+            isWithinPastWeek: recentWeekDates.has(date),
+            entryDate: date,
+            posEntryDate: pos.entryDate,
+            type: 'BUY',
+            status: 'OPEN',
+            symbol,
+            displayTicker: meta.displayTicker || symbol,
+            assetName: meta.name,
+            assetNameZh: meta.nameZh,
+            assetColor: meta.color,
+            price: bar.close,
+            entryPrice: bar.close,
+            currentPrice: bar.close,
+            shares: addShares,
+            amount: gross + fee,
+            fee,
+            stopLoss: pos.stopLoss,
+            takeProfit: pos.takeProfit,
+            tagZh: `加碼｜${decision.tagZh || ''}`,
+            tagEn: `Add｜${decision.tagEn || ''}`,
             reasonZh: `已持有 ${symbol}，策略再次出現買點，加碼到正常配置：${decision.reasonZh || ''}`,
             reasonEn: `Adding to an existing holding: ${decision.reasonEn || ''}`
           });
@@ -527,7 +639,11 @@ export function runArenaSimulation(rawMarketData, options = {}) {
 
       const returnPct = ((totalEquity - initialCapital) / initialCapital) * 100;
       const prevEquity =
-        equityCurve.length > 0 ? equityCurve.at(-1).equity : portfolioMode ? totalEquity : initialCapital;
+        equityCurve.length > 0
+          ? equityCurve.at(-1).equity
+          : portfolioMode
+            ? totalEquity
+            : initialCapital;
       const dailyPnlDollar = totalEquity - prevEquity;
       const dailyReturn = prevEquity > 0 ? dailyPnlDollar / prevEquity : 0;
 
@@ -548,8 +664,11 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     // Build active open positions array with unrealized PnL
     const activePositions = Array.from(openPositions.values()).map((pos) => {
       const marketValue = pos.shares * pos.currentPrice;
-      const unrealizedPnl = marketValue - pos.costBasis;
-      const unrealizedPnlPct = (unrealizedPnl / pos.costBasis) * 100;
+      const basisForPnl =
+        portfolioMode && !isHold ? (pos.ruleCostBasis ?? pos.costBasis) : pos.costBasis;
+      const unrealizedPnl = marketValue - basisForPnl;
+      const unrealizedPnlPct = basisForPnl > 0 ? (unrealizedPnl / basisForPnl) * 100 : 0;
+      const historicalUnrealizedPnl = marketValue - pos.costBasis;
       const rangeSpan = Math.max(0.0001, pos.takeProfit - pos.stopLoss);
       const rangeProgressPct = Math.max(
         0,
@@ -557,7 +676,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       );
       const entryRangePct = Math.max(
         0,
-        Math.min(100, ((pos.entryPrice - pos.stopLoss) / rangeSpan) * 100)
+        Math.min(100, (((pos.ruleEntry ?? pos.entryPrice) - pos.stopLoss) / rangeSpan) * 100)
       );
       const distToTpPct =
         pos.currentPrice > 0 ? ((pos.takeProfit - pos.currentPrice) / pos.currentPrice) * 100 : 0;
@@ -575,6 +694,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
         marketValue,
         unrealizedPnl,
         unrealizedPnlPct,
+        historicalUnrealizedPnl,
         rangeProgressPct,
         entryRangePct,
         distToTpPct,
@@ -587,7 +707,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     const closedMap = new Map(closedTrades.map((c) => [`${c.symbol}-${c.entryDate}`, c]));
     for (const ev of orderEvents) {
       if (ev.type === 'BUY') {
-        const key = `${ev.symbol}-${ev.entryDate}`;
+        const key = `${ev.symbol}-${ev.posEntryDate || ev.entryDate}`;
         const activePos = activeMap.get(key);
         const closedTr = closedMap.get(key);
         if (activePos) {
@@ -649,9 +769,12 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       returnPct: 0
     };
 
+    const evaluatedOpenPositions = activePositions.filter(
+      (p) => !(p.inherited && (!p.lots || p.lots.length <= 1))
+    );
     const allEvaluatedTrades = [
       ...closedTrades.map((t) => ({ pnl: t.netPnl, pnlPct: t.netPnlPct })),
-      ...activePositions.map((p) => ({ pnl: p.unrealizedPnl, pnlPct: p.unrealizedPnlPct }))
+      ...evaluatedOpenPositions.map((p) => ({ pnl: p.unrealizedPnl, pnlPct: p.unrealizedPnlPct }))
     ];
 
     const winningCount = allEvaluatedTrades.filter((t) => t.pnl > 0).length;
@@ -683,15 +806,20 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     const sharpeRatio = stdDaily > 0.0001 ? (meanDaily / stdDaily) * Math.sqrt(252) : 0;
 
     const totalFeesPaid = orderEvents.reduce((acc, e) => acc + (e.fee || 0), 0);
+    const activeReturnFromBasePct =
+      baseEquity > 0 ? ((finalPoint.equity - baseEquity) / baseEquity) * 100 : finalPoint.returnPct;
 
     return {
       trader,
       metrics: {
         initialCapital,
+        baseEquity,
         finalEquity: finalPoint.equity,
         netProfit: finalPoint.equity - initialCapital,
+        activeNetProfit: finalPoint.equity - baseEquity,
         totalReturnPct: finalPoint.returnPct,
-        alphaPct: finalPoint.returnPct - benchmarkFinalReturnPct,
+        activeReturnFromBasePct,
+        alphaPct: (portfolioMode ? activeReturnFromBasePct : finalPoint.returnPct) - benchmarkFinalReturnPct,
         cashBalance: finalPoint.cash,
         investedValue: finalPoint.investedValue,
         exposurePct:
@@ -729,20 +857,17 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       if (!latestBar) return null;
 
       const spyLatest = enrichedBySymbol[BENCHMARK_SYMBOL]?.at(-1);
-      const regime = {
-        spyBullish: spyLatest ? spyLatest.close >= spyLatest.sma50 * 0.985 : true,
-        spyShortTermBull: spyLatest
-          ? spyLatest.close >= spyLatest.sma20 * 0.99 || spyLatest.ema8 >= spyLatest.ema21
-          : true
-      };
+      const regime = buildRegime(spyLatest);
 
       const signalsByTrader = {};
       for (const trResult of traderResults) {
+        if (trResult.trader.id === 'hold-as-is') continue;
         const openPos = trResult.activePositions.find((p) => p.symbol === asset.symbol) || null;
+        const rulePos = openPos?.inherited ? { ...openPos, entryPrice: openPos.ruleEntry } : openPos;
         signalsByTrader[trResult.trader.id] = evaluateTraderSignal(
           trResult.trader.id,
           latestBar,
-          openPos,
+          rulePos,
           regime
         );
       }
@@ -822,6 +947,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
     config: {
       periodDays,
       initialCapital,
+      baseEquity,
       feeRate,
       marketFilter,
       top5Mode,
@@ -906,7 +1032,10 @@ function computeTop5PromisingAssets(
     // Find this week's Monday trading bar (first bar >= weekMondayDate, or latest bar <= weekMondayDate)
     let mondayBar =
       bars.find((b) => b.date >= weekMondayDate) ||
-      bars.slice().reverse().find((b) => b.date <= weekMondayDate) ||
+      bars
+        .slice()
+        .reverse()
+        .find((b) => b.date <= weekMondayDate) ||
       latestBar;
 
     // Evaluation bar: Monday bar when in 'monday' weekly lock mode, or latestBar when in 'live' preview mode
@@ -914,18 +1043,13 @@ function computeTop5PromisingAssets(
     anchorTradingDate = mondayBar.date;
 
     const spyBars = enrichedBySymbol[BENCHMARK_SYMBOL] || [];
-    const spyRefBar =
-      spyBars.find((b) => b.date === r.date) || spyBars.at(-1);
-    const regime = {
-      spyBullish: spyRefBar ? spyRefBar.close >= spyRefBar.sma50 * 0.985 : true,
-      spyShortTermBull: spyRefBar
-        ? spyRefBar.close >= spyRefBar.sma20 * 0.99 || spyRefBar.ema8 >= spyRefBar.ema21
-        : true
-    };
+    const spyRefBar = spyBars.find((b) => b.date === r.date) || spyBars.at(-1);
+    const regime = buildRegime(spyRefBar);
 
     // Evaluate all 3 AI Traders on this external stock's evaluation bar
     const signalsByTrader = {};
     for (const tr of traderResults) {
+      if (tr.trader.id === 'hold-as-is') continue;
       signalsByTrader[tr.trader.id] = evaluateTraderSignal(tr.trader.id, r, null, regime);
     }
 
@@ -957,6 +1081,7 @@ function computeTop5PromisingAssets(
     let aiConsensusPts = 0;
     const bullishTraders = [];
     for (const tr of traderResults) {
+      if (tr.trader.id === 'hold-as-is') continue;
       const sig = signalsByTrader[tr.trader.id];
       if (sig?.action === 'BUY' || (sig?.conviction || 0) >= 62) {
         aiConsensusPts += 6;
@@ -1086,13 +1211,15 @@ function computeNextEntryWatchlist(latestRadar, traderResults) {
   for (const r of latestRadar) {
     // Evaluate each trader that is NOT currently holding this asset
     for (const tr of traderResults) {
+      if (tr.trader.id === 'hold-as-is') continue;
       const isHeld = tr.activePositions.some((p) => p.symbol === r.symbol);
       if (isHeld) continue;
 
       const sig = r.signalsByTrader[tr.trader.id];
       if (!sig) continue;
 
-      const threshold = tr.trader.id === 'alpha-momentum' ? 74 : tr.trader.id === 'sigma-reversion' ? 70 : 72;
+      const threshold =
+        tr.trader.id === 'alpha-momentum' ? 74 : tr.trader.id === 'sigma-reversion' ? 70 : 72;
       const readinessPct =
         sig.action === 'BUY'
           ? 100
@@ -1106,7 +1233,10 @@ function computeNextEntryWatchlist(latestRadar, traderResults) {
       if (tr.trader.id === 'sigma-reversion') {
         // Sigma buys pullbacks toward lower/mid Bollinger band
         const std20 = (r.bbUpper - r.sma20) / 2 || r.close * 0.02;
-        const targetDipPrice = Math.min(r.close * 0.992, Math.max(r.sma50 * 1.002, r.sma20 - 0.6 * std20));
+        const targetDipPrice = Math.min(
+          r.close * 0.992,
+          Math.max(r.sma50 * 1.002, r.sma20 - 0.6 * std20)
+        );
         triggerPrice = sig.action === 'BUY' ? r.close : targetDipPrice;
         const diffPct = ((triggerPrice - r.close) / r.close) * 100;
         triggerTypeZh = sig.action === 'BUY' ? '🟢 已達抄底買點' : '🎯 回測支撐低接價';
@@ -1132,7 +1262,7 @@ function computeNextEntryWatchlist(latestRadar, traderResults) {
         triggerTypeZh = sig.action === 'BUY' ? '🟢 已達建倉門檻' : '🛡️ 因子共振建倉價';
         triggerConditionZh =
           sig.action === 'BUY'
-            ? `多因子評分已跨越 72 分門檻，符合 25% 機構核心倉位建倉條件`
+            ? `多因子評分已跨越 72 分門檻，符合機構風險平價核心倉位建倉條件`
             : `站穩 $${triggerPrice.toFixed(2)}（距現價 ${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%）且季線斜率轉強時觸發核心建倉`;
       }
 
@@ -1192,7 +1322,7 @@ function computeDailyBriefing({
   nextEntryWatchlist,
   latestRadar
 }) {
-  const champ = leaderboard[0];
+  const champ = leaderboard.find((r) => r.trader.id !== 'hold-as-is') || leaderboard[0];
   const spyItem = latestRadar.find((r) => r.symbol === 'SPY') || latestRadar[0];
   const goldItem = latestRadar.find((r) => r.symbol === 'XAUUSD');
 
@@ -1232,11 +1362,19 @@ function computeDailyBriefing({
  * Runs a focused Single-Asset K-Line Simulation for a selected ticker & AI trader
  * so the user can inspect every exact BUY/SELL arrow on the candlestick chart.
  */
-export function runSingleAssetSimulation(rawMarketData, symbol, traderId, periodDays = 60) {
-  const symbolData = rawMarketData.symbols?.[symbol];
+export function runSingleAssetSimulation(
+  rawMarketData,
+  symbol,
+  traderId,
+  periodDays = 60,
+  options = {}
+) {
+  const broad = expandBroad(options.broadData);
+  const symbolData = rawMarketData.symbols?.[symbol] || broad?.symbols?.[symbol];
   if (!symbolData || !symbolData.bars || !symbolData.bars.length) {
     return null;
   }
+  const feeRate = Number(options.feeRate ?? 0.001);
 
   const allBars = enrichBarsWithIndicators(symbolData.bars);
   const startIdx = Math.max(0, allBars.length - periodDays);
@@ -1244,6 +1382,7 @@ export function runSingleAssetSimulation(rawMarketData, symbol, traderId, period
 
   const spyBars = enrichBarsWithIndicators(rawMarketData.symbols?.[BENCHMARK_SYMBOL]?.bars || []);
   const spyMap = new Map(spyBars.map((b) => [b.date, b]));
+  let lastSpyBar = null;
 
   let position = null;
   let cooldownUntil = -1;
@@ -1252,17 +1391,12 @@ export function runSingleAssetSimulation(rawMarketData, symbol, traderId, period
 
   for (let i = 0; i < windowBars.length; i++) {
     const bar = windowBars[i];
-    const spyBar = spyMap.get(bar.date);
-    const regime = {
-      spyBullish: spyBar ? spyBar.close >= spyBar.sma50 * 0.985 : true,
-      spyShortTermBull: spyBar
-        ? spyBar.close >= spyBar.sma20 * 0.99 || spyBar.ema8 >= spyBar.ema21
-        : true
-    };
+    const spyBarToday = spyMap.get(bar.date);
+    if (spyBarToday) lastSpyBar = spyBarToday;
+    const regime = buildRegime(spyBarToday || lastSpyBar);
 
     if (position) {
       position.barsHeld += 1;
-      position.highestPrice = Math.max(position.highestPrice, bar.high || bar.close);
     }
 
     const decision = evaluateTraderSignal(traderId, bar, position, regime);
@@ -1272,7 +1406,7 @@ export function runSingleAssetSimulation(rawMarketData, symbol, traderId, period
         entryIndex: i,
         entryDate: bar.date,
         entryPrice: bar.close,
-        highestPrice: bar.high || bar.close,
+        highestPrice: bar.close,
         barsHeld: 0,
         stopLoss: decision.stopLossPrice || bar.close * 0.958,
         takeProfit: decision.takeProfitPrice || bar.close * 1.15,
@@ -1294,7 +1428,9 @@ export function runSingleAssetSimulation(rawMarketData, symbol, traderId, period
         reasonEn: decision.reasonEn
       });
     } else if (position && decision.action === 'SELL') {
-      const pnlPct = ((bar.close - position.entryPrice) / position.entryPrice) * 100;
+      const netEntry = position.entryPrice * (1 + feeRate);
+      const netExit = bar.close * (1 - feeRate);
+      const pnlPct = ((netExit - netEntry) / netEntry) * 100;
       markers.push({
         index: i,
         date: bar.date,
@@ -1323,13 +1459,16 @@ export function runSingleAssetSimulation(rawMarketData, symbol, traderId, period
       });
       position = null;
       cooldownUntil = i + 2;
+    } else if (position) {
+      position.highestPrice = Math.max(position.highestPrice, bar.high || bar.close);
     }
   }
 
   let openPositionSummary = null;
   if (position && windowBars.length > 0) {
     const lastBar = windowBars.at(-1);
-    const pnlPct = ((lastBar.close - position.entryPrice) / position.entryPrice) * 100;
+    const netEntry = position.entryPrice * (1 + feeRate);
+    const pnlPct = ((lastBar.close - netEntry) / netEntry) * 100;
     openPositionSummary = {
       ...position,
       status: 'OPEN',
@@ -1356,7 +1495,6 @@ export function runSingleAssetSimulation(rawMarketData, symbol, traderId, period
   };
 }
 
-
 /** Monday (YYYY-MM-DD) of the week containing `date`. */
 export function weekStart(date) {
   const d = new Date(date + 'T00:00:00Z');
@@ -1377,7 +1515,14 @@ export function buildPeriodPnl(curve) {
       let row = out.at(-1);
       if (!row || row.period !== key) {
         if (row) prevEnd = row.endEquity;
-        row = { period: key, startEquity: prevEnd, endEquity: pt.equity, pnl: 0, from: pt.date, to: pt.date };
+        row = {
+          period: key,
+          startEquity: prevEnd,
+          endEquity: pt.equity,
+          pnl: 0,
+          from: pt.date,
+          to: pt.date
+        };
         out.push(row);
       }
       row.endEquity = pt.equity;

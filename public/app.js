@@ -307,14 +307,18 @@ function recomputeAndRender(selectChampion = false) {
   });
 
   if (selectChampion && state.arenaResult.leaderboard.length > 0) {
-    state.selectedTraderId = state.arenaResult.leaderboard[0].trader.id;
+    const topAi =
+      state.arenaResult.leaderboard.find((x) => x.trader.id !== 'hold-as-is') ||
+      state.arenaResult.leaderboard[0];
+    state.selectedTraderId = topAi.trader.id;
   }
 
   state.klineResult = runSingleAssetSimulation(
     state.marketData,
     state.selectedSymbol,
-    state.selectedTraderId,
-    Math.max(40, Number(state.periodDays) || 22)
+    state.selectedTraderId === 'hold-as-is' ? 'sigma-reversion' : state.selectedTraderId,
+    Math.max(40, Number(state.periodDays) || 22),
+    { broadData: state.broadData, feeRate: state.feeRate }
   );
 
   renderTopTickerTape();
@@ -447,8 +451,9 @@ function renderTopTickerTape() {
       state.klineResult = runSingleAssetSimulation(
         state.marketData,
         state.selectedSymbol,
-        state.selectedTraderId,
-        Math.max(40, Number(state.periodDays) || 22)
+        state.selectedTraderId === 'hold-as-is' ? 'sigma-reversion' : state.selectedTraderId,
+        Math.max(40, Number(state.periodDays) || 22),
+        { broadData: state.broadData, feeRate: state.feeRate }
       );
       renderTopTickerTape();
       renderKlineAssetPills();
@@ -507,8 +512,8 @@ function renderLeaderboard() {
   const grid = document.getElementById('traders-leaderboard-grid');
   if (!grid || !state.arenaResult) return;
 
-  const rankLabelsZh = ['🥇 冠軍 #1', '🥈 亞軍 #2', '🥉 季軍 #3'];
-  const rankLabelsEn = ['🥇 RANK #1', '🥈 RANK #2', '🥉 RANK #3'];
+  const rankLabelsZh = ['🥇 冠軍 #1', '🥈 亞軍 #2', '🥉 季軍 #3', '📌 基準 #4'];
+  const rankLabelsEn = ['🥇 RANK #1', '🥈 RANK #2', '🥉 RANK #3', '📌 BASELINE #4'];
 
   grid.innerHTML = state.arenaResult.leaderboard
     .map((item, idx) => {
@@ -653,8 +658,9 @@ function renderLeaderboard() {
       state.klineResult = runSingleAssetSimulation(
         state.marketData,
         state.selectedSymbol,
-        state.selectedTraderId,
-        Math.max(40, Number(state.periodDays) || 22)
+        state.selectedTraderId === 'hold-as-is' ? 'sigma-reversion' : state.selectedTraderId,
+        Math.max(40, Number(state.periodDays) || 22),
+        { broadData: state.broadData, feeRate: state.feeRate }
       );
       renderLeaderboard();
       renderDailyCalendarSection();
@@ -673,8 +679,9 @@ function jumpToKlineAssetAndTrader(symbol, traderId) {
   state.klineResult = runSingleAssetSimulation(
     state.marketData,
     state.selectedSymbol,
-    state.selectedTraderId,
-    Math.max(40, Number(state.periodDays) || 22)
+    state.selectedTraderId === 'hold-as-is' ? 'sigma-reversion' : state.selectedTraderId,
+    Math.max(40, Number(state.periodDays) || 22),
+    { broadData: state.broadData, feeRate: state.feeRate }
   );
   renderTopTickerTape();
   renderLeaderboard();
@@ -1426,8 +1433,9 @@ function renderKlineAssetPills() {
       state.klineResult = runSingleAssetSimulation(
         state.marketData,
         state.selectedSymbol,
-        state.selectedTraderId,
-        Math.max(40, Number(state.periodDays) || 22)
+        state.selectedTraderId === 'hold-as-is' ? 'sigma-reversion' : state.selectedTraderId,
+        Math.max(40, Number(state.periodDays) || 22),
+        { broadData: state.broadData, feeRate: state.feeRate }
       );
       renderTopTickerTape();
       renderKlineAssetPills();
@@ -1819,8 +1827,9 @@ function renderTraderSelectPills() {
       state.klineResult = runSingleAssetSimulation(
         state.marketData,
         state.selectedSymbol,
-        state.selectedTraderId,
-        Math.max(40, Number(state.periodDays) || 22)
+        state.selectedTraderId === 'hold-as-is' ? 'sigma-reversion' : state.selectedTraderId,
+        Math.max(40, Number(state.periodDays) || 22),
+        { broadData: state.broadData, feeRate: state.feeRate }
       );
       renderLeaderboard();
       renderDailyCalendarSection();
