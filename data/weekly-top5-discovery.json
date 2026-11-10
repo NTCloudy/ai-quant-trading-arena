@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-09T22:53:54.965Z",
+  "updatedAt": "2026-11-10T03:40:27.515Z",
   "meta": {
     "mode": "monday",
     "weekMondayDate": "2026-11-09",
@@ -32,11 +32,11 @@
       "bullishTradersCount": 0,
       "buyZoneLow": 276.42136499999987,
       "buyZoneHigh": 412.04999999999995,
-      "targetPrice30d": 496.84854571100647,
-      "projectedUpsidePct": 21.182572124635715,
-      "stopLossPrice": 361.00851267584255,
-      "downsideRiskPct": 11.9491432497945,
-      "rewardRiskRatio": 1.7727272727272738,
+      "targetPrice30d": 496.969724282435,
+      "projectedUpsidePct": 21.212127873764636,
+      "stopLossPrice": 360.9401555329854,
+      "downsideRiskPct": 11.965815723662102,
+      "rewardRiskRatio": 1.772727272727273,
       "catalystsZh": [
         "產業護城河：AXON 2.0 AI 推薦引擎推升廣告轉換率與自由現金流，業務擴張至電商領域",
         "中長線多頭排列：股價 ($410.00) 站穩上揚 50日生命線 ($295.20，斜率 +0.87%)，近 20 日動能 +51.4%",
@@ -174,9 +174,9 @@
       "buyZoneHigh": 229.72289999999998,
       "targetPrice30d": 283.4392,
       "projectedUpsidePct": 24,
-      "stopLossPrice": 197.1219865361497,
-      "downsideRiskPct": 13.762364801754442,
-      "rewardRiskRatio": 1.7438863411715735,
+      "stopLossPrice": 197.12197082186398,
+      "downsideRiskPct": 13.762371676496644,
+      "rewardRiskRatio": 1.7438854700449025,
       "catalystsZh": [
         "產業護城河：Falcon 平台整合 Charlotte AI 自動化資安防禦，大型企業訂閱續約率領先全產業",
         "回檔黃金買點浮現：Z-Score=-0.96、RSI(14)=42.4，回測支撐下檔風險有限、盈虧比達 1.7 : 1",
