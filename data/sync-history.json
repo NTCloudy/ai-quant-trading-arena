@@ -1,12 +1,12 @@
 [
   {
-    "syncedAt": "2026-11-10T03:40:27.515Z",
+    "syncedAt": "2026-11-11T01:20:42.778Z",
     "marketDate": "2026-11-09",
     "trigger": "schedule",
-    "runNumber": 37,
-    "spyClose": 752.69,
-    "btcClose": 74435.16,
-    "nvdaClose": 178.67,
+    "runNumber": 38,
+    "spyClose": 749.92,
+    "btcClose": 73395.88,
+    "nvdaClose": 168.89,
     "benchmark1MReturnPct": -3.32,
     "leader1M": {
       "id": "sigma-reversion",
