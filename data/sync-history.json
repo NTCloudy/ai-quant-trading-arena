@@ -1,5 +1,40 @@
 [
   {
+    "syncedAt": "2026-11-14T01:31:44.921Z",
+    "marketDate": "2026-11-12",
+    "trigger": "schedule",
+    "runNumber": 41,
+    "spyClose": 754.37,
+    "btcClose": 68246.77,
+    "nvdaClose": 162.85,
+    "benchmark1MReturnPct": -1.62,
+    "leader1M": {
+      "id": "alpha-momentum",
+      "nameZh": "Alpha 動能突破型 AI",
+      "returnPct": -1.27,
+      "equity": 98729.9
+    },
+    "traders1M": {
+      "alpha-momentum": {
+        "returnPct": -1.27,
+        "equity": 98729.9,
+        "openPositions": []
+      },
+      "sigma-reversion": {
+        "returnPct": -2.15,
+        "equity": 97849.79,
+        "openPositions": [
+          "MSFT"
+        ]
+      },
+      "titan-multifactor": {
+        "returnPct": -1.27,
+        "equity": 98729.9,
+        "openPositions": []
+      }
+    }
+  },
+  {
     "syncedAt": "2026-11-13T01:59:17.831Z",
     "marketDate": "2026-11-11",
     "trigger": "schedule",
