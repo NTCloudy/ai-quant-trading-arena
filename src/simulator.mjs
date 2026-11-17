@@ -153,11 +153,14 @@ export function runArenaSimulation(rawMarketData, options = {}) {
   const isCustomSubset = enabledSet && ASSET_UNIVERSE.some((a) => !enabledSet.has(a.symbol));
 
   const { enrichedBySymbol, barBySymbolAndDate } = prepareEnrichedUniverse(rawMarketData);
-  // My Portfolio mode: every AI starts from the owner's real holdings with zero cash.
+  // My Portfolio mode: every AI starts from the owner's real holdings (plus optional initialCash).
   const initialHoldings = (options.initialHoldings || []).filter(
     (h) => enrichedBySymbol[h.symbol]?.length
   );
   const portfolioMode = initialHoldings.length > 0;
+  // Optional starting cash in My Portfolio mode (e.g. proceeds of the owner's recent sells); each AI may use it
+  // to buy or add by its own rules. The hold-as-is baseline keeps it idle as cash.
+  const initialCash = portfolioMode ? Math.max(0, Number(options.initialCash) || 0) : 0;
 
   // Determine eligible tradeable symbols
   let eligibleAssets = ASSET_UNIVERSE.filter((asset) => {
@@ -239,8 +242,8 @@ export function runArenaSimulation(rawMarketData, options = {}) {
   let baseEquity = initialCapital;
   if (portfolioMode) {
     // Capital = the owner's real total cost, so returns include the existing unrealized gains/losses.
-    initialCapital = initialHoldings.reduce((sum, h) => sum + h.shares * h.avgCost, 0);
-    baseEquity = initialHoldings.reduce((sum, h) => sum + h.shares * baselineClose(h.symbol), 0);
+    initialCapital = initialHoldings.reduce((sum, h) => sum + h.shares * h.avgCost, 0) + initialCash;
+    baseEquity = initialHoldings.reduce((sum, h) => sum + h.shares * baselineClose(h.symbol), 0) + initialCash;
   }
 
   // Last 5 trading days (~7 calendar days = Past 1 Week)
@@ -293,7 +296,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
   const traders = portfolioMode ? [...AI_TRADERS, HOLD_TRADER] : AI_TRADERS;
 
   const traderResults = traders.map((trader) => {
-    let cash = portfolioMode ? 0 : initialCapital;
+    let cash = portfolioMode ? initialCash : initialCapital;
     const openPositions = new Map(); // symbol -> position object
     const isHold = trader.id === 'hold-as-is';
     const maxPositions = portfolioMode
@@ -1025,6 +1028,7 @@ export function runArenaSimulation(rawMarketData, options = {}) {
       startDate: tradeFromDate || timelineDates[0] || '',
       tradeFromDate,
       portfolioMode,
+      initialCash,
       liveDaysCount: tradeFromDate ? timelineDates.filter((d) => d >= tradeFromDate).length : null,
       endDate: timelineDates.at(-1) || '',
       tradingDaysCount: timelineDates.length

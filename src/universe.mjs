@@ -338,7 +338,9 @@ export const DISCOVERY_CANDIDATE_UNIVERSE = [
  * The owner's real holdings (both brokerage accounts merged), synced from screenshots on 2026-11-17 TPE
  * (after the 2026-11-16 US close). TSLA merges 25 sh @ 439.46 (SinoPac sub-brokerage) and 27 sh @ 433.21
  * (SinoPac 豐存股) into 52 sh at the share-weighted average cost.
- * "My Portfolio" mode starts each AI with exactly these shares and zero cash: any buy must be funded by a sell.
+ * "My Portfolio" mode starts each AI with exactly these shares plus `cash`; any further buy must be funded by a sell.
+ * `cash` = proceeds of the 2026-11-16 sells (NVDA 60, GOOG 18.34339, DRAM 45, TSLA 10.37759, TSLL 140),
+ * estimated at the 2026-11-16 closes (exact fills unknown). Each AI decides by its own rules whether to use it.
  * avgCost is the real average cost (display only); AI performance is measured from the start-day close.
  *
  * Previous sync (2026-11-06): TSLA 62.37759 @ 418.53, VOO 19.26958 @ 589.15, QQQ 17.90924 @ 575.82,
@@ -347,6 +349,7 @@ export const DISCOVERY_CANDIDATE_UNIVERSE = [
 export const MY_PORTFOLIO = {
   startDate: '2026-11-17',
   syncedAt: '2026-11-17',
+  cash: 21607.6,
   holdings: [
     { symbol: 'TSLA', shares: 52, avgCost: 436.214 },
     { symbol: 'VOO', shares: 19.26958, avgCost: 589.15 },

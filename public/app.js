@@ -299,6 +299,7 @@ function recomputeAndRender(selectChampion = false) {
     broadData: typeof state.periodDays === 'string' ? state.broadData : null,
     tradeFromDate: state.periodDays === 'live' ? LIVE_START : state.periodDays === 'mine' ? MY_PORTFOLIO.startDate : null,
     initialHoldings: state.periodDays === 'mine' ? MY_PORTFOLIO.holdings : null,
+    initialCash: state.periodDays === 'mine' ? MY_PORTFOLIO.cash : 0,
     initialCapital: state.initialCapital,
     feeRate: state.feeRate,
     marketFilter: state.marketFilter,
@@ -486,7 +487,7 @@ function renderHeaderMeta() {
     badge.textContent =
       state.lang === 'zh'
         ? cfg.portfolioMode
-          ? `💼 我的持倉：${cfg.tradeFromDate} 起由 AI 接手（持股與買點同你的實際庫存，總成本 ${fmtMoney(cfg.initialCapital, 0)}、現金 0，要買必須先賣；已交易 ${cfg.liveDaysCount || 0} 個交易日）`
+          ? `💼 我的持倉：${cfg.tradeFromDate} 起由 AI 接手（持股與買點同你的實際庫存，總成本 ${fmtMoney(cfg.initialCapital, 0)}${cfg.initialCash > 0 ? `、另有賣股現金 ${fmtMoney(cfg.initialCash, 0)} 可用（各 AI 依策略決定買不買）` : '、現金 0，要買必須先賣'}；已交易 ${cfg.liveDaysCount || 0} 個交易日）`
           : cfg.tradeFromDate
           ? (cfg.liveDaysCount > 0
               ? `🔴 實盤：${cfg.tradeFromDate} 起全新帳戶 → ${cfg.endDate}（已交易 ${cfg.liveDaysCount} 個交易日 · ${cfg.enabledSymbols.length} 檔標的）`

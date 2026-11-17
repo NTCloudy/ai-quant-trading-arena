@@ -8,7 +8,8 @@ const [kind = 'week', arg = new Date().toISOString().slice(0, 10)] = process.arg
 const raw = JSON.parse(fs.readFileSync(new URL('../data/market-snapshot.json', import.meta.url), 'utf8'));
 let broadData = null;
 try { broadData = JSON.parse(fs.readFileSync(new URL('../data/broad-snapshot.json', import.meta.url), 'utf8')); } catch {}
-const r = runArenaSimulation(raw, { broadData, tradeFromDate: MY_PORTFOLIO.startDate, initialHoldings: MY_PORTFOLIO.holdings });
+const r = runArenaSimulation(raw, { broadData, tradeFromDate: MY_PORTFOLIO.startDate, initialHoldings: MY_PORTFOLIO.holdings,
+  initialCash: MY_PORTFOLIO.cash });
 const key = kind === 'week' ? weekStart(arg) : arg.slice(0, 7);
 const list = kind === 'week' ? 'weekly' : 'monthly';
 const rows = r.leaderboard.map((t) => {

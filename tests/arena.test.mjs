@@ -173,19 +173,25 @@ test('live forward mode: fresh account, no orders before tradeFromDate', async (
   }
 });
 
-test('my portfolio mode: starts from real holdings with zero cash; buys only funded by sells', async () => {
+test('my portfolio mode: starts from real holdings plus optional cash; no extra money', async () => {
   const { MY_PORTFOLIO } = await import('../src/universe.mjs');
   const raw = JSON.parse(await fs.readFile(path.join(__dirname, '..', 'data', 'market-snapshot.json'), 'utf8'));
   const dates = raw.symbols.SPY.bars.map((b) => b.date);
-  const r = runArenaSimulation(raw, { tradeFromDate: dates.at(-40), initialHoldings: MY_PORTFOLIO.holdings });
-  assert.equal(r.leaderboard.length, 4);
-  const base = r.leaderboard[0].equityCurve[0].equity;
-  const cost = MY_PORTFOLIO.holdings.reduce((s, h) => s + h.shares * h.avgCost, 0);
-  assert.ok(Math.abs(r.config.initialCapital - cost) < 1e-6, 'capital = real total cost');
-  for (const t of r.leaderboard) {
-    assert.ok(Math.abs(t.equityCurve[0].equity - base) < 1e-6, 'all start from the same holdings value');
-    assert.equal(t.equityCurve[0].cash, 0);
-    for (const e of t.equityCurve) assert.ok(e.cash >= -1e-6, 'cash never negative (no extra money)');
-    if (t.trader.id === 'hold-as-is') assert.equal(t.orderEvents.length, 0);
+  const cash0 = MY_PORTFOLIO.cash || 0;
+  for (const cash of [0, cash0]) {
+    const r = runArenaSimulation(raw, { tradeFromDate: dates.at(-40), initialHoldings: MY_PORTFOLIO.holdings,
+      initialCash: cash });
+    assert.equal(r.leaderboard.length, 4);
+    const base = r.leaderboard[0].equityCurve[0].equity;
+    const cost = MY_PORTFOLIO.holdings.reduce((s, h) => s + h.shares * h.avgCost, 0);
+    assert.ok(Math.abs(r.config.initialCapital - cost - cash) < 1e-6, 'capital = real total cost + cash');
+    for (const t of r.leaderboard) {
+      assert.ok(Math.abs(t.equityCurve[0].equity - base) < 1e-6, 'all start from the same value');
+      for (const e of t.equityCurve) assert.ok(e.cash >= -1e-6, 'cash never negative (no extra money)');
+      if (t.trader.id === 'hold-as-is') {
+        assert.equal(t.orderEvents.length, 0);
+        assert.ok(Math.abs(t.equityCurve.at(-1).cash - cash) < 1e-6, 'baseline keeps the cash idle');
+      }
+    }
   }
 });
