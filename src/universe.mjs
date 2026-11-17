@@ -335,21 +335,23 @@ export const DISCOVERY_CANDIDATE_UNIVERSE = [
 ];
 
 /**
- * The owner's real holdings (both brokerage accounts merged), synced from screenshots on 2026-11-06.
+ * The owner's real holdings (both brokerage accounts merged), synced from screenshots on 2026-11-17 TPE
+ * (after the 2026-11-16 US close). TSLA merges 25 sh @ 439.46 (SinoPac sub-brokerage) and 27 sh @ 433.21
+ * (SinoPac 豐存股) into 52 sh at the share-weighted average cost.
  * "My Portfolio" mode starts each AI with exactly these shares and zero cash: any buy must be funded by a sell.
  * avgCost is the real average cost (display only); AI performance is measured from the start-day close.
+ *
+ * Previous sync (2026-11-06): TSLA 62.37759 @ 418.53, VOO 19.26958 @ 589.15, QQQ 17.90924 @ 575.82,
+ * NVDA 60 @ 182.47, GOOG 18.34339 @ 245.32, TSLL 290 @ 15.71, DRAM 45 @ 69.8.
  */
 export const MY_PORTFOLIO = {
-  startDate: '2026-11-06',
-  syncedAt: '2026-11-06',
+  startDate: '2026-11-17',
+  syncedAt: '2026-11-17',
   holdings: [
-    { symbol: 'TSLA', shares: 62.37759, avgCost: 418.53 },
+    { symbol: 'TSLA', shares: 52, avgCost: 436.214 },
     { symbol: 'VOO', shares: 19.26958, avgCost: 589.15 },
     { symbol: 'QQQ', shares: 17.90924, avgCost: 575.82 },
-    { symbol: 'NVDA', shares: 60, avgCost: 182.47 },
-    { symbol: 'GOOG', shares: 18.34339, avgCost: 245.32 },
-    { symbol: 'TSLL', shares: 290, avgCost: 15.71 },
-    { symbol: 'DRAM', shares: 45, avgCost: 69.8 }
+    { symbol: 'TSLL', shares: 150, avgCost: 14.09 }
   ]
 };
 
