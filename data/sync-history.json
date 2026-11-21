@@ -1,5 +1,40 @@
 [
   {
+    "syncedAt": "2026-11-21T02:37:42.306Z",
+    "marketDate": "2026-11-20",
+    "trigger": "schedule",
+    "runNumber": 49,
+    "spyClose": 689.81,
+    "btcClose": 58652.01,
+    "nvdaClose": 125.53,
+    "benchmark1MReturnPct": -9.71,
+    "leader1M": {
+      "id": "titan-multifactor",
+      "nameZh": "Titan 多因子風控型 AI",
+      "returnPct": -1.77,
+      "equity": 98229.25
+    },
+    "traders1M": {
+      "alpha-momentum": {
+        "returnPct": -1.89,
+        "equity": 98107.13,
+        "openPositions": []
+      },
+      "sigma-reversion": {
+        "returnPct": -2.97,
+        "equity": 97025.78,
+        "openPositions": [
+          "AAPL"
+        ]
+      },
+      "titan-multifactor": {
+        "returnPct": -1.77,
+        "equity": 98229.25,
+        "openPositions": []
+      }
+    }
+  },
+  {
     "syncedAt": "2026-11-20T02:27:26.885Z",
     "marketDate": "2026-11-19",
     "trigger": "schedule",
