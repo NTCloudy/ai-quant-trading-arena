@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-24T00:37:55.281Z",
+  "updatedAt": "2026-11-24T05:23:41.806Z",
   "meta": {
     "mode": "monday",
     "weekMondayDate": "2026-11-23",
@@ -69,9 +69,9 @@
       "buyZoneHigh": 315.11775,
       "targetPrice30d": 388.802,
       "projectedUpsidePct": 24,
-      "stopLossPrice": 269.5074013932475,
-      "downsideRiskPct": 14.04643553077739,
-      "rewardRiskRatio": 1.7086185279826458,
+      "stopLossPrice": 269.50425853610466,
+      "downsideRiskPct": 14.047437877179192,
+      "rewardRiskRatio": 1.7084966105448505,
       "catalystsZh": [
         "產業護城河：CSP 雲端巨頭自研 AI ASIC (XPU) 與乙太網路交換晶片最大受惠霸主",
         "回檔黃金買點浮現：Z-Score=-0.94、RSI(14)=43.8，回測支撐下檔風險有限、盈虧比達 1.7 : 1",
@@ -174,9 +174,9 @@
       "buyZoneHigh": 124.48934999999999,
       "targetPrice30d": 153.5988,
       "projectedUpsidePct": 24,
-      "stopLossPrice": 106.9301682761488,
-      "downsideRiskPct": 13.675491825180591,
-      "rewardRiskRatio": 1.7549643045238754,
+      "stopLossPrice": 106.93015256186308,
+      "downsideRiskPct": 13.675504511291614,
+      "rewardRiskRatio": 1.754962676527483,
       "catalystsZh": [
         "產業護城河：AI 算力中心用電需求激增，具備零碳核能發電資產與高溢價長約優勢",
         "技術位階穩健：RSI(14)=42.8、布林 %B=31%，蓄勢挑戰前波壓力區",
